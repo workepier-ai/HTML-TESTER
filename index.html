@@ -116,7 +116,7 @@
       position: absolute;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 70%; max-width: 320px;
+      width: 75%; max-width: 340px;
       aspect-ratio: 1;
     }
     .viewfinder::before, .viewfinder::after,
@@ -241,7 +241,7 @@
     <canvas id="canvas"></canvas>
     <div class="scan-overlay">
       <div class="scan-banner" id="banner">Aim camera at VIN QR code</div>
-      <div class="viewfinder"><div></div></div>
+      <div class="viewfinder" id="viewfinder"><div></div></div>
       <div class="scan-controls">
         <button class="scan-cancel" onclick="cancelScan()">Cancel</button>
         <button class="scan-btn" id="captureBtn" onclick="captureForOCR()"></button>
@@ -265,6 +265,7 @@
       <div class="field">
         <label>Model Name (from text on label)</label>
         <input id="modelInput" type="text" maxlength="11" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+        <div id="ocrHint" style="display:none; font-size:12px; color:#888; margin-top:6px; font-family:'SF Mono',Menlo,monospace; line-height:1.4;"></div>
       </div>
       <div class="result-box">
         <div class="trim" id="decTrim">—</div>
@@ -378,7 +379,7 @@
   let scanRAF = null;
 
   async function startScan() {
-    state = { vin: '', model: '', stage: 'qr' };
+    state = { vin: '', model: '', rawOCR: '', stage: 'qr' };
     document.getElementById('home').style.display = 'none';
     document.getElementById('scan').style.display = 'block';
     document.getElementById('captureBtn').style.display = 'none';
@@ -422,7 +423,7 @@
         if (match) {
           state.vin = match[0];
           state.stage = 'model';
-          setBanner('✓ VIN: ' + state.vin + '\nNow aim at Model Name (e.g. LC2TJLDPDR8) and tap the circle', true);
+          setBanner('✓ VIN: ' + state.vin + '\nNow frame the whole label in the box and tap the circle', true);
           document.getElementById('captureBtn').style.display = 'block';
           if (navigator.vibrate) navigator.vibrate(80);
           // play a quick blip if possible
@@ -442,54 +443,131 @@
   }
 
   // ============================================================
-  // OCR for model name
+  // OCR for model name — crop the strip, binarize, fuzzy-match
   // ============================================================
+  let ocrWorker = null;
+
   async function captureForOCR() {
     if (state.stage !== 'model') return;
     state.stage = 'ocr';
     if (scanRAF) cancelAnimationFrame(scanRAF);
 
     const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
+    const fullCanvas = document.getElementById('canvas');
+    fullCanvas.width = video.videoWidth;
+    fullCanvas.height = video.videoHeight;
+    const fullCtx = fullCanvas.getContext('2d');
+    fullCtx.drawImage(video, 0, 0);
 
+    // Crop the SQUARE region that matches the on-screen viewfinder.
+    // Viewfinder is 75% width, aspect 1:1, centred.  We grab a slightly larger
+    // box so users don't have to align it perfectly.
+    const vw = fullCanvas.width, vh = fullCanvas.height;
+    const side = Math.min(vw, vh) * 0.82;  // square side
+    const cropX = (vw - side) / 2;
+    const cropY = (vh - side) / 2;
+
+    // Upscale 1.5x — Tesseract is happier with larger fonts but huge images slow it down
+    const scale = 1.5;
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width  = Math.round(side * scale);
+    cropCanvas.height = Math.round(side * scale);
+    const cropCtx = cropCanvas.getContext('2d');
+    cropCtx.imageSmoothingEnabled = true;
+    cropCtx.imageSmoothingQuality = 'high';
+    cropCtx.drawImage(fullCanvas, cropX, cropY, side, side, 0, 0, cropCanvas.width, cropCanvas.height);
+
+    // Light preprocessing only: grayscale + contrast bump.
+    // Don't binarize — kills small text on real-world labels.
+    const img = cropCtx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const g = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114);
+      // 1.4x contrast around midpoint
+      let v = (g - 128) * 1.4 + 128;
+      v = v < 0 ? 0 : v > 255 ? 255 : v;
+      d[i] = d[i+1] = d[i+2] = v;
+    }
+    cropCtx.putImageData(img, 0, 0);
+
+    // Load Tesseract if first time
     if (!window.Tesseract) {
       showLoading('Downloading OCR engine (first time only, ~3 MB)…');
-      try { await loadTesseract(); } catch (e) {
+      try { await loadTesseract(); }
+      catch (e) {
         hideLoading();
-        alert('Could not download OCR engine. Check internet connection.');
-        state.stage = 'model';
-        scanLoop();
+        alert('Could not download OCR engine — check internet, then try again.');
+        resetToModelStage();
         return;
       }
     }
     showLoading('Reading model name…');
 
+    let raw = '';
     try {
-      const result = await Tesseract.recognize(canvas, 'eng', {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            document.getElementById('loadingProgress').textContent = Math.round(m.progress * 100) + '%';
-          }
-        },
+      // Use worker API so we can set character whitelist + single-line PSM
+      if (!ocrWorker) {
+        ocrWorker = await Tesseract.createWorker('eng', 1, {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              document.getElementById('loadingProgress').textContent = Math.round(m.progress * 100) + '%';
+            }
+          },
+        });
+      }
+      await ocrWorker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.-+ ',
+        tessedit_pageseg_mode:   '12',  // PSM 12 = sparse text with OSD (best for busy labels)
       });
-      hideLoading();
-      const raw = result.data.text || '';
-      // Strip whitespace and look for the variant-code pattern
-      const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      const m = cleaned.match(/L[BC]2T[YCJ][JL][A-Z]PDR8/);
-      state.model = m ? m[0] : '';
-      stopCamera();
-      goToConfirm();
+      const result = await ocrWorker.recognize(cropCanvas);
+      raw = (result.data.text || '').toUpperCase();
     } catch (e) {
       hideLoading();
       alert('OCR failed: ' + (e.message || e));
-      state.stage = 'model';
-      scanLoop();
+      resetToModelStage();
+      return;
     }
+    hideLoading();
+
+    state.rawOCR = raw;
+    state.model = bestMatch(raw);
+    stopCamera();
+    goToConfirm();
+  }
+
+  function resetToModelStage() {
+    state.stage = 'model';
+    scanLoop();
+  }
+
+  // Try strict regex, then fuzzy-match against known codes
+  function bestMatch(text) {
+    const cleaned = text.replace(/[^A-Z0-9]/g, '');
+    // Strict pattern
+    const strict = cleaned.match(/L[BC]2T[YCJ][JL][A-Z]PDR8/);
+    if (strict) return strict[0];
+
+    // OCR confusion map (bidirectional, weight 0.85 = "close enough")
+    const confusions = {
+      '0':'O','O':'0','1':'I','I':'1','2':'Z','Z':'2',
+      '5':'S','S':'5','8':'B','B':'8','6':'G','G':'6',
+      'D':'0',  // D often misread as 0 in tight fonts
+    };
+    const known = Object.keys(VARIANTS);
+    let bestCode = '', bestScore = 0;
+    for (const code of known) {
+      for (let start = 0; start <= cleaned.length - code.length; start++) {
+        let score = 0;
+        for (let i = 0; i < code.length; i++) {
+          const c = cleaned[start + i], t = code[i];
+          if (c === t) score += 1;
+          else if (confusions[c] === t || confusions[t] === c) score += 0.85;
+        }
+        const norm = score / code.length;
+        if (norm > bestScore) { bestScore = norm; bestCode = code; }
+      }
+    }
+    return bestScore >= 0.75 ? bestCode : '';   // 75 % threshold
   }
 
   function loadTesseract() {
@@ -532,6 +610,13 @@
     document.getElementById('confirm').style.display = 'flex';
     document.getElementById('vinInput').value = state.vin || '';
     document.getElementById('modelInput').value = state.model || '';
+    const hint = document.getElementById('ocrHint');
+    if (state.rawOCR) {
+      hint.style.display = 'block';
+      hint.textContent = 'OCR read: "' + state.rawOCR.replace(/\s+/g, ' ').trim() + '"';
+    } else {
+      hint.style.display = 'none';
+    }
     updateDecoded();
   }
 
