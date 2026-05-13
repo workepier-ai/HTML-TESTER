@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Triton Scan">
+  <meta name="theme-color" content="#1F4E78">
+
+  <title>Triton Scanner</title>
+
+  <!-- PWA manifest, embedded as data URI so the file is fully self-contained -->
+  <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"Triton Scanner","short_name":"Triton","start_url":"./","display":"standalone","background_color":"%23ffffff","theme_color":"%231F4E78","orientation":"portrait","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22110%22 fill=%22%231F4E78%22/><text x=%22256%22 y=%22340%22 font-family=%22-apple-system,system-ui,sans-serif%22 font-size=%22260%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22>T</text></svg>","sizes":"512x512","type":"image/svg+xml","purpose":"any"}]}'>
+
+  <!-- Home-screen icon for iOS -->
+  <link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="%231F4E78"/><text x="256" y="340" font-family="-apple-system,system-ui,sans-serif" font-size="260" font-weight="700" fill="white" text-anchor="middle">T</text></svg>'>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+      background: #f7f8fa;
+      color: #1c1c1e;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .topbar {
+      padding: calc(env(safe-area-inset-top) + 14px) 16px 14px;
+      background: #1F4E78;
+      color: white;
+      font-weight: 600;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar .icon-btn {
+      background: transparent; border: 0; color: white;
+      font-size: 22px; padding: 4px 10px; cursor: pointer;
+    }
+
+    /* ========== HOME ========== */
+    #home { display: flex; flex-direction: column; height: 100vh; }
+    .records {
+      flex: 1; overflow-y: auto; padding: 10px;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 100px;
+    }
+    .record {
+      background: white; border-radius: 14px; padding: 14px;
+      margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      position: relative;
+    }
+    .record .model { font-weight: 700; font-size: 15px; font-family: "SF Mono", Menlo, monospace; }
+    .record .decoded { color: #1F4E78; margin-top: 4px; font-size: 15px; line-height: 1.3; }
+    .record .vin { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: #6a6a6a; margin-top: 6px; }
+    .record .meta { color: #999; font-size: 11px; margin-top: 4px; }
+    .record .del {
+      position: absolute; top: 10px; right: 10px;
+      background: transparent; border: 0; color: #ccc; font-size: 18px;
+    }
+    .empty {
+      text-align: center; padding: 60px 30px; color: #888;
+      font-size: 15px; line-height: 1.5;
+    }
+    .empty .big { font-size: 50px; margin-bottom: 12px; }
+
+    .fab {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom) + 22px);
+      right: 22px;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: #1F4E78; color: white; border: 0;
+      font-size: 34px; font-weight: 300; line-height: 64px;
+      box-shadow: 0 4px 14px rgba(31, 78, 120, 0.4);
+      cursor: pointer;
+      z-index: 5;
+    }
+    .fab:active { transform: scale(0.95); }
+
+    /* ========== SCAN ========== */
+    #scan { display: none; height: 100vh; background: black; position: relative; }
+    #scan video {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    #scan canvas { display: none; }
+
+    .scan-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+    }
+    .scan-banner {
+      position: absolute;
+      top: calc(env(safe-area-inset-top) + 12px);
+      left: 12px; right: 12px;
+      background: rgba(0,0,0,0.72);
+      color: white;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 15px;
+      text-align: center;
+      line-height: 1.4;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .scan-banner.success {
+      background: rgba(34, 168, 83, 0.92);
+      font-weight: 600;
+    }
+
+    /* viewfinder corner brackets */
+    .viewfinder {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 70%; max-width: 320px;
+      aspect-ratio: 1;
+    }
+    .viewfinder::before, .viewfinder::after,
+    .viewfinder > div::before, .viewfinder > div::after {
+      content: '';
+      position: absolute;
+      width: 28px; height: 28px;
+      border: 3px solid rgba(255,255,255,0.85);
+    }
+    .viewfinder::before { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+    .viewfinder::after  { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
+    .viewfinder > div::before { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
+    .viewfinder > div::after  { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+
+    .scan-controls {
+      position: absolute;
+      bottom: calc(env(safe-area-inset-bottom) + 26px);
+      left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      pointer-events: auto;
+    }
+    .scan-cancel {
+      padding: 12px 20px;
+      background: rgba(0,0,0,0.55);
+      color: white; border-radius: 24px; border: 0;
+      font-size: 15px; font-weight: 500;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .scan-btn {
+      width: 74px; height: 74px;
+      border-radius: 50%;
+      background: white;
+      border: 5px solid rgba(255,255,255,0.4);
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.25);
+      display: none;
+    }
+    .scan-btn:active { transform: scale(0.93); }
+    .spacer { width: 74px; }
+
+    /* ========== CONFIRM ========== */
+    #confirm { display: none; flex-direction: column; height: 100vh; background: #f7f8fa; }
+    .confirm-body { flex: 1; overflow-y: auto; padding: 20px; -webkit-overflow-scrolling: touch; }
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block; font-size: 12px; color: #888;
+      margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+    }
+    .field input {
+      width: 100%; padding: 14px 16px;
+      font-size: 17px;
+      font-family: "SF Mono", Menlo, monospace;
+      border: 1px solid #e0e0e0; border-radius: 12px;
+      background: white;
+      -webkit-appearance: none;
+    }
+    .field input:focus { outline: 0; border-color: #1F4E78; }
+    .result-box {
+      background: #E2EFDA; padding: 16px; border-radius: 12px; margin-top: 16px;
+      border: 1px solid #c8e2ba;
+    }
+    .result-box .trim {
+      font-size: 19px; font-weight: 700; color: #1F4E78; margin-bottom: 4px;
+    }
+    .result-box .config { color: #2c5282; font-size: 14px; }
+
+    .confirm-buttons {
+      display: flex; gap: 10px;
+      padding: 16px;
+      padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+      background: white; border-top: 1px solid #eee;
+    }
+    .btn {
+      flex: 1; padding: 16px; border-radius: 14px;
+      font-size: 17px; font-weight: 600; border: 0;
+      cursor: pointer;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #1F4E78; color: white; }
+    .btn-secondary { background: #e8e8e8; color: #333; }
+
+    /* loading overlay */
+    .loading {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; color: white;
+      z-index: 999;
+      padding: 20px;
+      text-align: center;
+    }
+    .loading.show { display: flex; }
+    .spinner {
+      width: 50px; height: 50px;
+      border: 4px solid rgba(255,255,255,0.25);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .msg { font-size: 15px; line-height: 1.4; max-width: 280px; }
+    .loading .progress { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- ========== HOME ========== -->
+  <div id="home">
+    <div class="topbar">
+      <span>Triton Scanner</span>
+      <button class="icon-btn" onclick="exportCSV()" title="Export CSV">⤓</button>
+    </div>
+    <div class="records" id="records"></div>
+    <button class="fab" id="fab">+</button>
+  </div>
+
+  <!-- ========== SCAN ========== -->
+  <div id="scan">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="scan-overlay">
+      <div class="scan-banner" id="banner">Aim camera at VIN QR code</div>
+      <div class="viewfinder"><div></div></div>
+      <div class="scan-controls">
+        <button class="scan-cancel" onclick="cancelScan()">Cancel</button>
+        <button class="scan-btn" id="captureBtn" onclick="captureForOCR()"></button>
+        <div class="spacer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== CONFIRM ========== -->
+  <div id="confirm">
+    <div class="topbar">
+      <button class="icon-btn" onclick="cancelConfirm()">‹</button>
+      <span>Confirm</span>
+      <span style="width:30px"></span>
+    </div>
+    <div class="confirm-body">
+      <div class="field">
+        <label>VIN (from QR)</label>
+        <input id="vinInput" type="text" maxlength="17" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>Model Name (from text on label)</label>
+        <input id="modelInput" type="text" maxlength="11" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="result-box">
+        <div class="trim" id="decTrim">—</div>
+        <div class="config" id="decConfig">Enter a VIN or Model Name to decode</div>
+      </div>
+    </div>
+    <div class="confirm-buttons">
+      <button class="btn btn-secondary" onclick="cancelConfirm()">Discard</button>
+      <button class="btn btn-primary" onclick="saveRecord()">Save</button>
+    </div>
+  </div>
+
+  <!-- loading overlay -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="msg" id="loadingMsg">Working…</div>
+    <div class="progress" id="loadingProgress"></div>
+  </div>
+
+  <!-- jsQR — pure JS QR scanner, MIT licensed, ~50KB -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <script>
+  // ============================================================
+  // Decoder logic — same as the Excel
+  // ============================================================
+  const VARIANTS = {
+    'LB2TYJDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x2', trans:'Manual' },
+    'LB2TYLDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x2', trans:'Auto'   },
+    'LB2TJLDPDR8': { trim:'GLX',                  body:'Dual Cab Pickup',          drive:'4x2', trans:'Auto'   },
+    'LB2TJLHPDR8': { trim:'GLX-tier',             body:'Dual Cab Pickup',          drive:'4x2', trans:'Auto'   },
+    'LB2TJLPPDR8': { trim:'GLX-tier',             body:'Dual Cab Pickup',          drive:'4x2', trans:'Auto'   },
+    'LC2TYJDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x4', trans:'Manual' },
+    'LC2TYLDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x4', trans:'Auto'   },
+    'LC2TCJDPDR8': { trim:'GLX+',                 body:'Club Cab Pickup',          drive:'4x4', trans:'Manual' },
+    'LC2TCLDPDR8': { trim:'GLX+ / GLX',           body:'Club Cab Pickup or CC',    drive:'4x4', trans:'Auto'   },
+    'LC2TJJDPDR8': { trim:'GLX',                  body:'Dual Cab Cab Chassis',     drive:'4x4', trans:'Manual' },
+    'LC2TJJHPDR8': { trim:'GLX-tier',             body:'Dual Cab Pickup',          drive:'4x4', trans:'Manual' },
+    'LC2TJLDPDR8': { trim:'GLX+',                 body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
+    'LC2TJLLPDR8': { trim:'GLX-R tier',           body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
+    'LC2TJLHPDR8': { trim:'GLX-R',                body:'Dual Cab Pickup or CC',    drive:'4x4', trans:'Auto'   },
+    'LC2TJLMPDR8': { trim:'GLS',                  body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
+    'LC2TJLPPDR8': { trim:'GSR',                  body:'Dual Cab Pickup or CC',    drive:'4x4', trans:'Auto'   },
+    'LC2TJLNPDR8': { trim:'GSR Special Edition',  body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
+  };
+  function decodeFromModel(code) { return VARIANTS[code] || null; }
+
+  function decodeFromVIN(vin) {
+    if (!vin || vin.length !== 17 || vin.slice(0,3).toUpperCase() !== 'MMA') return null;
+    const bodyMap  = { 'C':'Club Cab Pickup','J':'Dual Cab Pickup','W':'Club Cab Cab Chassis','Y':'Single Cab Cab Chassis','Z':'Dual Cab Cab Chassis' };
+    const transMap = { 'J':'Manual','L':'Auto' };
+    const driveMap = { 'B':'4x2','C':'4x4' };
+    const body  = bodyMap[vin[3]]  || '? body';
+    const trans = transMap[vin[4]] || '? trans';
+    const drive = driveMap[vin[6]] || '? drive';
+    let trim;
+    if (vin[3]==='C' && vin[6]==='C') trim = 'GLX+';
+    else if (vin[3]==='J' && vin[6]==='B') trim = 'GLX';
+    else if (vin[3]==='J' && vin[6]==='C') trim = 'GLX+ / GLX-R / GLS / GSR (check Model Name)';
+    else if (vin[3]==='W') trim = 'GLX';
+    else if (vin[3]==='Y') trim = 'GLX';
+    else if (vin[3]==='Z') trim = 'GLX / GLS / GSR (check Model Name)';
+    else trim = '?';
+    return { trim, body, drive, trans };
+  }
+
+  // ============================================================
+  // Storage
+  // ============================================================
+  function loadRecords() {
+    try { return JSON.parse(localStorage.getItem('triton_records') || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveRecords(r) { localStorage.setItem('triton_records', JSON.stringify(r)); }
+
+  function renderRecords() {
+    const records = loadRecords();
+    const el = document.getElementById('records');
+    if (records.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="big">📷</div>No vehicles scanned yet.<br>Tap <b>+</b> to scan one.</div>';
+      return;
+    }
+    el.innerHTML = records.slice().reverse().map((r, displayIdx) => {
+      const actualIdx = records.length - 1 - displayIdx;
+      const dec = decodeFromModel(r.model) || decodeFromVIN(r.vin) || {};
+      const cfg = [dec.body, dec.drive, dec.trans].filter(Boolean).join(', ');
+      return `
+        <div class="record">
+          <button class="del" onclick="deleteRecord(${actualIdx})">✕</button>
+          <div class="model">${r.model || '(no model name)'}</div>
+          <div class="decoded">Triton ${dec.trim || '?'}${cfg ? ', ' + cfg : ''}</div>
+          <div class="vin">VIN: ${r.vin || '—'}</div>
+          <div class="meta">${new Date(r.t).toLocaleString()}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function deleteRecord(idx) {
+    if (!confirm('Delete this record?')) return;
+    const records = loadRecords();
+    records.splice(idx, 1);
+    saveRecords(records);
+    renderRecords();
+  }
+
+  // ============================================================
+  // Scan state machine
+  // ============================================================
+  let state = { vin: '', model: '', stage: 'idle' };
+  let videoStream = null;
+  let scanRAF = null;
+
+  async function startScan() {
+    state = { vin: '', model: '', stage: 'qr' };
+    document.getElementById('home').style.display = 'none';
+    document.getElementById('scan').style.display = 'block';
+    document.getElementById('captureBtn').style.display = 'none';
+    setBanner('Aim camera at VIN QR code', false);
+
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+      });
+      const video = document.getElementById('video');
+      video.srcObject = videoStream;
+      await video.play();
+      scanLoop();
+    } catch (e) {
+      alert('Camera access denied. Allow Camera in iPhone Settings → Safari, then reload.');
+      cancelScan();
+    }
+  }
+
+  function setBanner(text, success) {
+    const b = document.getElementById('banner');
+    b.textContent = text;
+    b.classList.toggle('success', !!success);
+  }
+
+  function scanLoop() {
+    if (state.stage !== 'qr') return;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) {
+        // Extract the VIN-like substring (Mitsubishi sometimes wraps it in *...*)
+        const cleaned = code.data.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        const match = cleaned.match(/MMA[A-HJ-NPR-Z0-9]{14}/);
+        if (match) {
+          state.vin = match[0];
+          state.stage = 'model';
+          setBanner('✓ VIN: ' + state.vin + '\nNow aim at Model Name (e.g. LC2TJLDPDR8) and tap the circle', true);
+          document.getElementById('captureBtn').style.display = 'block';
+          if (navigator.vibrate) navigator.vibrate(80);
+          // play a quick blip if possible
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.frequency.value = 1200; o.connect(g); g.connect(ctx.destination);
+            g.gain.value = 0.1;
+            o.start(); o.stop(ctx.currentTime + 0.08);
+          } catch (e) {}
+          return;
+        }
+      }
+    }
+    scanRAF = requestAnimationFrame(scanLoop);
+  }
+
+  // ============================================================
+  // OCR for model name
+  // ============================================================
+  async function captureForOCR() {
+    if (state.stage !== 'model') return;
+    state.stage = 'ocr';
+    if (scanRAF) cancelAnimationFrame(scanRAF);
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    if (!window.Tesseract) {
+      showLoading('Downloading OCR engine (first time only, ~3 MB)…');
+      try { await loadTesseract(); } catch (e) {
+        hideLoading();
+        alert('Could not download OCR engine. Check internet connection.');
+        state.stage = 'model';
+        scanLoop();
+        return;
+      }
+    }
+    showLoading('Reading model name…');
+
+    try {
+      const result = await Tesseract.recognize(canvas, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            document.getElementById('loadingProgress').textContent = Math.round(m.progress * 100) + '%';
+          }
+        },
+      });
+      hideLoading();
+      const raw = result.data.text || '';
+      // Strip whitespace and look for the variant-code pattern
+      const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const m = cleaned.match(/L[BC]2T[YCJ][JL][A-Z]PDR8/);
+      state.model = m ? m[0] : '';
+      stopCamera();
+      goToConfirm();
+    } catch (e) {
+      hideLoading();
+      alert('OCR failed: ' + (e.message || e));
+      state.stage = 'model';
+      scanLoop();
+    }
+  }
+
+  function loadTesseract() {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg;
+    document.getElementById('loadingProgress').textContent = '';
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+  function stopCamera() {
+    if (videoStream) {
+      videoStream.getTracks().forEach(t => t.stop());
+      videoStream = null;
+    }
+    if (scanRAF) cancelAnimationFrame(scanRAF);
+  }
+
+  function cancelScan() {
+    stopCamera();
+    state.stage = 'idle';
+    document.getElementById('scan').style.display = 'none';
+    document.getElementById('home').style.display = 'flex';
+  }
+
+  // ============================================================
+  // Confirm screen
+  // ============================================================
+  function goToConfirm() {
+    document.getElementById('scan').style.display = 'none';
+    document.getElementById('confirm').style.display = 'flex';
+    document.getElementById('vinInput').value = state.vin || '';
+    document.getElementById('modelInput').value = state.model || '';
+    updateDecoded();
+  }
+
+  function cancelConfirm() {
+    document.getElementById('confirm').style.display = 'none';
+    document.getElementById('home').style.display = 'flex';
+  }
+
+  function saveRecord() {
+    const vin   = document.getElementById('vinInput').value.trim().toUpperCase();
+    const model = document.getElementById('modelInput').value.trim().toUpperCase();
+    if (!vin && !model) { alert('Need at least a VIN or Model Name.'); return; }
+    const records = loadRecords();
+    records.push({ vin, model, t: Date.now() });
+    saveRecords(records);
+    document.getElementById('confirm').style.display = 'none';
+    document.getElementById('home').style.display = 'flex';
+    renderRecords();
+  }
+
+  function updateDecoded() {
+    const vin   = document.getElementById('vinInput').value.trim().toUpperCase();
+    const model = document.getElementById('modelInput').value.trim().toUpperCase();
+    const dec = decodeFromModel(model) || decodeFromVIN(vin);
+    if (dec) {
+      document.getElementById('decTrim').textContent   = 'Triton ' + dec.trim;
+      document.getElementById('decConfig').textContent = [dec.body, dec.drive, dec.trans].filter(Boolean).join(' · ');
+    } else {
+      document.getElementById('decTrim').textContent   = '—';
+      document.getElementById('decConfig').textContent = 'Enter a valid VIN or 11-char Model Name';
+    }
+  }
+  document.getElementById('vinInput').addEventListener('input', updateDecoded);
+  document.getElementById('modelInput').addEventListener('input', updateDecoded);
+
+  // ============================================================
+  // CSV export
+  // ============================================================
+  function exportCSV() {
+    const records = loadRecords();
+    if (records.length === 0) { alert('No records to export yet.'); return; }
+    let csv = 'When,VIN,Model Name,Trim,Body,Drive,Transmission\n';
+    records.forEach(r => {
+      const d = decodeFromModel(r.model) || decodeFromVIN(r.vin) || {};
+      csv += [
+        new Date(r.t).toISOString(),
+        r.vin || '',
+        r.model || '',
+        d.trim || '',
+        d.body || '',
+        d.drive || '',
+        d.trans || ''
+      ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'triton_scans_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // ============================================================
+  // Wire up + initial render
+  // ============================================================
+  document.getElementById('fab').addEventListener('click', startScan);
+  renderRecords();
+  </script>
+</body>
+</html>
