@@ -6,365 +6,424 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Triton Scan">
-  <meta name="theme-color" content="#1F4E78">
+  <meta name="theme-color" content="#000000">
 
   <title>Triton Scanner</title>
 
-  <!-- PWA manifest, embedded as data URI so the file is fully self-contained -->
-  <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"Triton Scanner","short_name":"Triton","start_url":"./","display":"standalone","background_color":"%23ffffff","theme_color":"%231F4E78","orientation":"portrait","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22110%22 fill=%22%231F4E78%22/><text x=%22256%22 y=%22340%22 font-family=%22-apple-system,system-ui,sans-serif%22 font-size=%22260%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22>T</text></svg>","sizes":"512x512","type":"image/svg+xml","purpose":"any"}]}'>
-
-  <!-- Home-screen icon for iOS -->
-  <link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="%231F4E78"/><text x="256" y="340" font-family="-apple-system,system-ui,sans-serif" font-size="260" font-weight="700" fill="white" text-anchor="middle">T</text></svg>'>
+  <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"Triton Scanner","short_name":"Triton","start_url":"./","display":"standalone","background_color":"%23ffffff","theme_color":"%23000000","orientation":"portrait","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22110%22 fill=%22%23000000%22/><text x=%22256%22 y=%22340%22 font-family=%22-apple-system,system-ui,sans-serif%22 font-size=%22260%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22>T</text></svg>","sizes":"512x512","type":"image/svg+xml","purpose":"any"}]}'>
+  <link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="%23000000"/><text x="256" y="340" font-family="-apple-system,system-ui,sans-serif" font-size="260" font-weight="700" fill="white" text-anchor="middle">T</text></svg>'>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; overflow: hidden; }
+    html, body { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
-      background: #f7f8fa;
-      color: #1c1c1e;
+      background: #ffffff;
+      color: #000000;
       -webkit-font-smoothing: antialiased;
+      overflow: hidden;
     }
 
+    /* High-contrast topbar */
     .topbar {
-      padding: calc(env(safe-area-inset-top) + 14px) 16px 14px;
-      background: #1F4E78;
-      color: white;
-      font-weight: 600;
-      font-size: 17px;
+      padding: calc(env(safe-area-inset-top) + 14px) 14px 14px;
+      background: #000000;
+      color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
     }
-    .topbar .icon-btn {
-      background: transparent; border: 0; color: white;
-      font-size: 22px; padding: 4px 10px; cursor: pointer;
+    .topbar .title {
+      flex: 1; text-align: center;
+      font-weight: 700; font-size: 18px; letter-spacing: 0.3px;
+    }
+    .topbar .left, .topbar .right {
+      min-width: 70px; display: flex; align-items: center;
+    }
+    .topbar .right { justify-content: flex-end; }
+    .topbar button {
+      background: transparent; border: 0; color: #ffffff;
+      font-size: 17px; font-weight: 600;
+      padding: 6px 10px; cursor: pointer;
+    }
+    .topbar .save-btn {
+      background: #ffffff; color: #000000;
+      border-radius: 8px; padding: 8px 16px; font-weight: 800;
+    }
+    .topbar .save-btn:disabled { opacity: 0.35; }
+    .records-count {
+      background: #fff; color: #000;
+      border-radius: 10px; padding: 4px 10px;
+      font-weight: 800; font-size: 14px;
     }
 
-    /* ========== HOME ========== */
-    #home { display: flex; flex-direction: column; height: 100vh; }
+    /* ============ HOME ============ */
+    #home { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
     .records {
-      flex: 1; overflow-y: auto; padding: 10px;
+      flex: 1; overflow-y: auto; padding: 8px;
       -webkit-overflow-scrolling: touch;
-      padding-bottom: 100px;
+      padding-bottom: 110px;
     }
     .record {
-      background: white; border-radius: 14px; padding: 14px;
-      margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      background: #ffffff; border-radius: 12px; padding: 14px;
+      margin-bottom: 8px; border: 1px solid #d0d0d0;
       position: relative;
     }
-    .record .model { font-weight: 700; font-size: 15px; font-family: "SF Mono", Menlo, monospace; }
-    .record .decoded { color: #1F4E78; margin-top: 4px; font-size: 15px; line-height: 1.3; }
-    .record .vin { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: #6a6a6a; margin-top: 6px; }
-    .record .meta { color: #999; font-size: 11px; margin-top: 4px; }
+    .record .top-line {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+    }
+    .record .swatch {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0;
+    }
+    .record .trim { font-weight: 800; font-size: 17px; }
+    .record .body-line { color: #000; font-size: 14px; }
+    .record .meta {
+      display: flex; gap: 14px;
+      color: #333; font-size: 14px; margin-top: 6px; font-weight: 600;
+      font-family: "SF Mono", Menlo, monospace;
+    }
+    .record .vin {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 11px; color: #777; margin-top: 4px;
+    }
     .record .del {
-      position: absolute; top: 10px; right: 10px;
-      background: transparent; border: 0; color: #ccc; font-size: 18px;
+      position: absolute; top: 8px; right: 8px;
+      background: transparent; border: 0; color: #999;
+      font-size: 20px; padding: 4px 10px; cursor: pointer;
     }
     .empty {
-      text-align: center; padding: 60px 30px; color: #888;
-      font-size: 15px; line-height: 1.5;
+      text-align: center; padding: 60px 30px; color: #444;
+      font-size: 16px; line-height: 1.5;
     }
-    .empty .big { font-size: 50px; margin-bottom: 12px; }
+    .empty .big { font-size: 56px; margin-bottom: 14px; color: #000; }
 
     .fab {
       position: fixed;
       bottom: calc(env(safe-area-inset-bottom) + 22px);
       right: 22px;
-      width: 64px; height: 64px;
+      width: 70px; height: 70px;
       border-radius: 50%;
-      background: #1F4E78; color: white; border: 0;
-      font-size: 34px; font-weight: 300; line-height: 64px;
-      box-shadow: 0 4px 14px rgba(31, 78, 120, 0.4);
-      cursor: pointer;
-      z-index: 5;
+      background: #000000; color: #ffffff; border: 0;
+      font-size: 38px; font-weight: 300; line-height: 70px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+      cursor: pointer; z-index: 5;
     }
-    .fab:active { transform: scale(0.95); }
+    .fab:active { transform: scale(0.93); }
 
-    /* ========== SCAN ========== */
+    /* ============ SCAN ============ */
     #scan { display: none; height: 100vh; background: black; position: relative; }
-    #scan video {
-      width: 100%; height: 100%; object-fit: cover;
-    }
+    #scan video { width: 100%; height: 100%; object-fit: cover; }
     #scan canvas { display: none; }
-
-    .scan-overlay {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      pointer-events: none;
-    }
     .scan-banner {
       position: absolute;
       top: calc(env(safe-area-inset-top) + 12px);
       left: 12px; right: 12px;
-      background: rgba(0,0,0,0.72);
+      background: rgba(0,0,0,0.78);
       color: white;
-      padding: 14px 18px;
+      padding: 16px 18px;
       border-radius: 12px;
-      font-size: 15px;
-      text-align: center;
-      line-height: 1.4;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      font-size: 17px; font-weight: 700;
+      text-align: center; line-height: 1.3;
     }
-    .scan-banner.success {
-      background: rgba(34, 168, 83, 0.92);
-      font-weight: 600;
-    }
-
-    /* viewfinder corner brackets */
+    .scan-banner.success { background: rgba(0, 160, 80, 0.95); }
     .viewfinder {
       position: absolute;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 75%; max-width: 340px;
+      width: 75%; max-width: 320px;
       aspect-ratio: 1;
+      pointer-events: none;
     }
     .viewfinder::before, .viewfinder::after,
     .viewfinder > div::before, .viewfinder > div::after {
-      content: '';
-      position: absolute;
-      width: 28px; height: 28px;
-      border: 3px solid rgba(255,255,255,0.85);
+      content: ''; position: absolute;
+      width: 32px; height: 32px;
+      border: 4px solid rgba(255,255,255,0.95);
     }
     .viewfinder::before { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
     .viewfinder::after  { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
     .viewfinder > div::before { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
     .viewfinder > div::after  { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
 
-    .scan-controls {
-      position: absolute;
-      bottom: calc(env(safe-area-inset-bottom) + 26px);
-      left: 0; right: 0;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 24px;
-      pointer-events: auto;
-    }
     .scan-cancel {
-      padding: 12px 20px;
-      background: rgba(0,0,0,0.55);
-      color: white; border-radius: 24px; border: 0;
-      font-size: 15px; font-weight: 500;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      position: absolute;
+      bottom: calc(env(safe-area-inset-bottom) + 30px);
+      left: 50%; transform: translateX(-50%);
+      padding: 14px 32px;
+      background: rgba(0,0,0,0.7);
+      color: white; border-radius: 30px; border: 2px solid rgba(255,255,255,0.6);
+      font-size: 17px; font-weight: 700;
     }
-    .scan-btn {
-      width: 74px; height: 74px;
-      border-radius: 50%;
-      background: white;
-      border: 5px solid rgba(255,255,255,0.4);
-      box-shadow: 0 0 0 3px rgba(0,0,0,0.25);
-      display: none;
-    }
-    .scan-btn:active { transform: scale(0.93); }
-    .spacer { width: 74px; }
 
-    /* ========== CONFIRM ========== */
-    #confirm { display: none; flex-direction: column; height: 100vh; background: #f7f8fa; }
-    .confirm-body { flex: 1; overflow-y: auto; padding: 20px; -webkit-overflow-scrolling: touch; }
-    .field { margin-bottom: 18px; }
-    .field label {
-      display: block; font-size: 12px; color: #888;
-      margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+    /* Saved toast on scan screen */
+    .toast {
+      position: fixed;
+      top: calc(env(safe-area-inset-top) + 70px);
+      left: 50%; transform: translateX(-50%) translateY(-30px);
+      background: #00a050; color: white;
+      padding: 14px 24px; border-radius: 30px;
+      font-weight: 800; font-size: 16px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 10;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
     }
-    .field input {
-      width: 100%; padding: 14px 16px;
-      font-size: 17px;
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ============ ENTRY ============ */
+    #entry { display: none; flex-direction: column; height: 100vh; background: #f5f5f5; }
+    .entry-body {
+      flex: 1; overflow-y: auto; padding: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .vin-pill {
+      background: #000; color: #fff;
+      padding: 10px 14px; border-radius: 10px;
       font-family: "SF Mono", Menlo, monospace;
-      border: 1px solid #e0e0e0; border-radius: 12px;
-      background: white;
-      -webkit-appearance: none;
+      font-size: 14px; font-weight: 800;
+      text-align: center; margin-bottom: 6px; letter-spacing: 0.5px;
     }
-    .field input:focus { outline: 0; border-color: #1F4E78; }
-    .result-box {
-      background: #E2EFDA; padding: 16px; border-radius: 12px; margin-top: 16px;
-      border: 1px solid #c8e2ba;
+    .vin-decoded {
+      color: #000; font-size: 14px; text-align: center;
+      margin-bottom: 14px; font-weight: 700;
     }
-    .result-box .trim {
-      font-size: 19px; font-weight: 700; color: #1F4E78; margin-bottom: 4px;
-    }
-    .result-box .config { color: #2c5282; font-size: 14px; }
 
-    .confirm-buttons {
-      display: flex; gap: 10px;
-      padding: 16px;
-      padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
-      background: white; border-top: 1px solid #eee;
+    .section-label {
+      font-size: 12px; font-weight: 800;
+      color: #000; letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin: 12px 4px 6px;
     }
-    .btn {
-      flex: 1; padding: 16px; border-radius: 14px;
-      font-size: 17px; font-weight: 600; border: 0;
+
+    /* Colour grid */
+    .colours {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .colour-btn {
+      background: #fff;
+      border: 3px solid #ccc;
+      border-radius: 12px;
+      padding: 6px;
       cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+      min-height: 86px;
     }
-    .btn:active { transform: scale(0.98); }
-    .btn-primary { background: #1F4E78; color: white; }
-    .btn-secondary { background: #e8e8e8; color: #333; }
+    .colour-btn:active { transform: scale(0.95); }
+    .colour-btn.selected {
+      border-color: #000; border-width: 4px;
+      background: #ebebeb;
+    }
+    .colour-btn .swatch {
+      width: 100%; aspect-ratio: 1.4 / 1;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+    .colour-btn .name {
+      font-size: 11px; font-weight: 800;
+      text-align: center; line-height: 1.1;
+      color: #000;
+    }
 
-    /* loading overlay */
-    .loading {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.75);
-      display: none; align-items: center; justify-content: center;
-      flex-direction: column; color: white;
-      z-index: 999;
-      padding: 20px;
+    /* Trim buttons */
+    .trims { display: grid; gap: 8px; }
+    .trims.cols-1 { grid-template-columns: 1fr; }
+    .trims.cols-2 { grid-template-columns: 1fr 1fr; }
+    .trims.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .trims.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .trim-btn {
+      background: #fff;
+      border: 3px solid #ccc;
+      border-radius: 12px;
+      padding: 18px 8px;
+      font-size: 19px; font-weight: 800;
+      color: #000;
+      cursor: pointer;
       text-align: center;
     }
-    .loading.show { display: flex; }
-    .spinner {
-      width: 50px; height: 50px;
-      border: 4px solid rgba(255,255,255,0.25);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 16px;
+    .trim-btn:active { transform: scale(0.95); }
+    .trim-btn.selected {
+      background: #000; color: #fff;
+      border-color: #000;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading .msg { font-size: 15px; line-height: 1.4; max-width: 280px; }
-    .loading .progress { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+
+    /* Text input fields */
+    .field-row {
+      display: flex; align-items: center;
+      background: #fff;
+      border: 3px solid #ccc;
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    .field-row:focus-within { border-color: #000; }
+    .field-row label {
+      font-size: 13px; font-weight: 800;
+      color: #000; letter-spacing: 0.5px;
+      text-transform: uppercase;
+      min-width: 72px;
+    }
+    .field-row input {
+      flex: 1;
+      border: 0; outline: 0; background: transparent;
+      font-size: 20px; font-weight: 800;
+      color: #000;
+      font-family: "SF Mono", Menlo, monospace;
+      padding: 6px 0;
+      min-width: 0;
+    }
   </style>
 </head>
 <body>
 
-  <!-- ========== HOME ========== -->
+  <!-- ============ HOME ============ -->
   <div id="home">
     <div class="topbar">
-      <span>Triton Scanner</span>
-      <button class="icon-btn" onclick="exportCSV()" title="Export CSV">⤓</button>
+      <div class="left"><button onclick="exportCSV()">Export</button></div>
+      <div class="title">Triton</div>
+      <div class="right"><span class="records-count" id="recCount">0</span></div>
     </div>
     <div class="records" id="records"></div>
     <button class="fab" id="fab">+</button>
   </div>
 
-  <!-- ========== SCAN ========== -->
+  <!-- ============ SCAN ============ -->
   <div id="scan">
     <video id="video" playsinline autoplay muted></video>
     <canvas id="canvas"></canvas>
-    <div class="scan-overlay">
-      <div class="scan-banner" id="banner">Aim camera at VIN QR code</div>
-      <div class="viewfinder" id="viewfinder"><div></div></div>
-      <div class="scan-controls">
-        <button class="scan-cancel" onclick="cancelScan()">Cancel</button>
-        <button class="scan-btn" id="captureBtn" onclick="captureForOCR()"></button>
-        <div class="spacer"></div>
-      </div>
-    </div>
+    <div class="scan-banner" id="banner">Scan VIN QR code</div>
+    <div class="viewfinder"><div></div></div>
+    <button class="scan-cancel" onclick="cancelScan()">Cancel</button>
+    <div class="toast" id="scanToast"></div>
   </div>
 
-  <!-- ========== CONFIRM ========== -->
-  <div id="confirm">
+  <!-- ============ ENTRY ============ -->
+  <div id="entry">
     <div class="topbar">
-      <button class="icon-btn" onclick="cancelConfirm()">‹</button>
-      <span>Confirm</span>
-      <span style="width:30px"></span>
+      <div class="left"><button onclick="cancelEntry()">Cancel</button></div>
+      <div class="title">New Entry</div>
+      <div class="right"><button class="save-btn" id="saveBtn" onclick="saveEntry()" disabled>Save</button></div>
     </div>
-    <div class="confirm-body">
-      <div class="field">
-        <label>VIN (from QR)</label>
-        <input id="vinInput" type="text" maxlength="17" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+    <div class="entry-body">
+      <div class="vin-pill" id="vinPill">—</div>
+      <div class="vin-decoded" id="vinDecoded">—</div>
+
+      <div class="section-label">Colour</div>
+      <div class="colours" id="colourGrid"></div>
+
+      <div class="section-label">Model</div>
+      <div class="trims" id="trimGrid"></div>
+
+      <div class="section-label">Details</div>
+      <div class="field-row">
+        <label for="keyInput">Key #</label>
+        <input id="keyInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
       </div>
-      <div class="field">
-        <label>Model Name (from text on label)</label>
-        <input id="modelInput" type="text" maxlength="11" autocapitalize="characters" autocomplete="off" spellcheck="false" />
-        <div id="ocrHint" style="display:none; font-size:12px; color:#888; margin-top:6px; font-family:'SF Mono',Menlo,monospace; line-height:1.4;"></div>
+      <div class="field-row">
+        <label for="mfgInput">Mfg ID</label>
+        <input id="mfgInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="done" />
       </div>
-      <div class="result-box">
-        <div class="trim" id="decTrim">—</div>
-        <div class="config" id="decConfig">Enter a VIN or Model Name to decode</div>
-      </div>
-    </div>
-    <div class="confirm-buttons">
-      <button class="btn btn-secondary" onclick="cancelConfirm()">Discard</button>
-      <button class="btn btn-primary" onclick="saveRecord()">Save</button>
+      <div style="height: 80px"></div>
     </div>
   </div>
 
-  <!-- loading overlay -->
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-    <div class="msg" id="loadingMsg">Working…</div>
-    <div class="progress" id="loadingProgress"></div>
-  </div>
-
-  <!-- jsQR — pure JS QR scanner, MIT licensed, ~50KB -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-
   <script>
   // ============================================================
-  // Decoder logic — same as the Excel
+  // Triton AU colour palette — edit freely
   // ============================================================
-  const VARIANTS = {
-    'LB2TYJDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x2', trans:'Manual' },
-    'LB2TYLDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x2', trans:'Auto'   },
-    'LB2TJLDPDR8': { trim:'GLX',                  body:'Dual Cab Pickup',          drive:'4x2', trans:'Auto'   },
-    'LB2TJLHPDR8': { trim:'GLX-tier',             body:'Dual Cab Pickup',          drive:'4x2', trans:'Auto'   },
-    'LB2TJLPPDR8': { trim:'GLX-tier',             body:'Dual Cab Pickup',          drive:'4x2', trans:'Auto'   },
-    'LC2TYJDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x4', trans:'Manual' },
-    'LC2TYLDPDR8': { trim:'GLX',                  body:'Single Cab Cab Chassis',   drive:'4x4', trans:'Auto'   },
-    'LC2TCJDPDR8': { trim:'GLX+',                 body:'Club Cab Pickup',          drive:'4x4', trans:'Manual' },
-    'LC2TCLDPDR8': { trim:'GLX+ / GLX',           body:'Club Cab Pickup or CC',    drive:'4x4', trans:'Auto'   },
-    'LC2TJJDPDR8': { trim:'GLX',                  body:'Dual Cab Cab Chassis',     drive:'4x4', trans:'Manual' },
-    'LC2TJJHPDR8': { trim:'GLX-tier',             body:'Dual Cab Pickup',          drive:'4x4', trans:'Manual' },
-    'LC2TJLDPDR8': { trim:'GLX+',                 body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
-    'LC2TJLLPDR8': { trim:'GLX-R tier',           body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
-    'LC2TJLHPDR8': { trim:'GLX-R',                body:'Dual Cab Pickup or CC',    drive:'4x4', trans:'Auto'   },
-    'LC2TJLMPDR8': { trim:'GLS',                  body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
-    'LC2TJLPPDR8': { trim:'GSR',                  body:'Dual Cab Pickup or CC',    drive:'4x4', trans:'Auto'   },
-    'LC2TJLNPDR8': { trim:'GSR Special Edition',  body:'Dual Cab Pickup',          drive:'4x4', trans:'Auto'   },
-  };
-  function decodeFromModel(code) { return VARIANTS[code] || null; }
+  const COLOURS = [
+    { name: 'White Diamond',   hex: '#F2F2F0' },
+    { name: 'Sterling Silver', hex: '#B7B9BC' },
+    { name: 'Graphite Grey',   hex: '#4A4D52' },
+    { name: 'Black Mica',      hex: '#14171C' },
+    { name: 'Impulse Blue',    hex: '#2E4F73' },
+    { name: 'Red Solid',       hex: '#B71F2A' },
+    { name: 'Yamabuki Orange', hex: '#D87231' },
+    { name: 'Other',           hex: '#cccccc' },
+  ];
 
+  // ============================================================
+  // Trim options by VIN config — body code (pos 4) + drive (pos 7)
+  // ============================================================
+  const TRIMS_BY_CONFIG = {
+    'CC': ['GLX+'],                              // Club Cab Pickup 4x4
+    'JB': ['GLX'],                               // Dual Cab Pickup 4x2
+    'JC': ['GLX+', 'GLX-R', 'GLS', 'GSR'],       // Dual Cab Pickup 4x4
+    'WC': ['GLX'],                               // Club Cab CC 4x4
+    'YB': ['GLX'],                               // Single Cab CC 4x2
+    'YC': ['GLX'],                               // Single Cab CC 4x4
+    'ZC': ['GLX', 'GLS', 'GSR'],                 // Dual Cab CC 4x4
+  };
+
+  // ============================================================
+  // VIN decode
+  // ============================================================
   function decodeFromVIN(vin) {
     if (!vin || vin.length !== 17 || vin.slice(0,3).toUpperCase() !== 'MMA') return null;
+    const v = vin.toUpperCase();
     const bodyMap  = { 'C':'Club Cab Pickup','J':'Dual Cab Pickup','W':'Club Cab Cab Chassis','Y':'Single Cab Cab Chassis','Z':'Dual Cab Cab Chassis' };
     const transMap = { 'J':'Manual','L':'Auto' };
     const driveMap = { 'B':'4x2','C':'4x4' };
-    const body  = bodyMap[vin[3]]  || '? body';
-    const trans = transMap[vin[4]] || '? trans';
-    const drive = driveMap[vin[6]] || '? drive';
-    let trim;
-    if (vin[3]==='C' && vin[6]==='C') trim = 'GLX+';
-    else if (vin[3]==='J' && vin[6]==='B') trim = 'GLX';
-    else if (vin[3]==='J' && vin[6]==='C') trim = 'GLX+ / GLX-R / GLS / GSR (check Model Name)';
-    else if (vin[3]==='W') trim = 'GLX';
-    else if (vin[3]==='Y') trim = 'GLX';
-    else if (vin[3]==='Z') trim = 'GLX / GLS / GSR (check Model Name)';
-    else trim = '?';
-    return { trim, body, drive, trans };
+    return {
+      bodyCode:  v[3],
+      driveCode: v[6],
+      body:  bodyMap[v[3]]  || '?',
+      trans: transMap[v[4]] || '?',
+      drive: driveMap[v[6]] || '?',
+    };
+  }
+  function availableTrims(d) {
+    if (!d) return ['GLX'];
+    return TRIMS_BY_CONFIG[d.bodyCode + d.driveCode] || ['GLX'];
   }
 
   // ============================================================
   // Storage
   // ============================================================
   function loadRecords() {
-    try { return JSON.parse(localStorage.getItem('triton_records') || '[]'); }
+    try { return JSON.parse(localStorage.getItem('triton_records_v2') || '[]'); }
     catch (e) { return []; }
   }
-  function saveRecords(r) { localStorage.setItem('triton_records', JSON.stringify(r)); }
+  function saveRecords(r) { localStorage.setItem('triton_records_v2', JSON.stringify(r)); }
 
   function renderRecords() {
     const records = loadRecords();
+    document.getElementById('recCount').textContent = records.length;
     const el = document.getElementById('records');
     if (records.length === 0) {
-      el.innerHTML = '<div class="empty"><div class="big">📷</div>No vehicles scanned yet.<br>Tap <b>+</b> to scan one.</div>';
+      el.innerHTML = '<div class="empty"><div class="big">＋</div>No vehicles scanned yet.<br>Tap the <b>+</b> button to start.</div>';
       return;
     }
     el.innerHTML = records.slice().reverse().map((r, displayIdx) => {
       const actualIdx = records.length - 1 - displayIdx;
-      const dec = decodeFromModel(r.model) || decodeFromVIN(r.vin) || {};
-      const cfg = [dec.body, dec.drive, dec.trans].filter(Boolean).join(', ');
+      const dec = decodeFromVIN(r.vin) || {};
+      const colour = COLOURS.find(c => c.name === r.colour) || { hex: '#ccc' };
       return `
         <div class="record">
           <button class="del" onclick="deleteRecord(${actualIdx})">✕</button>
-          <div class="model">${r.model || '(no model name)'}</div>
-          <div class="decoded">Triton ${dec.trim || '?'}${cfg ? ', ' + cfg : ''}</div>
-          <div class="vin">VIN: ${r.vin || '—'}</div>
-          <div class="meta">${new Date(r.t).toLocaleString()}</div>
+          <div class="top-line">
+            <div class="swatch" style="background:${colour.hex}"></div>
+            <div class="trim">${r.trim || '?'} ${r.colour ? '— ' + r.colour : ''}</div>
+          </div>
+          <div class="body-line">${dec.body || '?'} · ${dec.drive || '?'} · ${dec.trans || '?'}</div>
+          <div class="meta">
+            <span>Key <b>${r.key || '—'}</b></span>
+            <span>Mfg <b>${r.mfg || '—'}</b></span>
+          </div>
+          <div class="vin">VIN: ${r.vin}</div>
         </div>`;
     }).join('');
   }
 
   function deleteRecord(idx) {
-    if (!confirm('Delete this record?')) return;
+    if (!confirm('Delete this entry?')) return;
     const records = loadRecords();
     records.splice(idx, 1);
     saveRecords(records);
@@ -372,18 +431,18 @@
   }
 
   // ============================================================
-  // Scan state machine
+  // Scan
   // ============================================================
-  let state = { vin: '', model: '', stage: 'idle' };
   let videoStream = null;
   let scanRAF = null;
+  let savedThisSession = 0;
 
   async function startScan() {
-    state = { vin: '', model: '', rawOCR: '', stage: 'qr' };
     document.getElementById('home').style.display = 'none';
+    document.getElementById('entry').style.display = 'none';
     document.getElementById('scan').style.display = 'block';
-    document.getElementById('captureBtn').style.display = 'none';
-    setBanner('Aim camera at VIN QR code', false);
+    document.getElementById('banner').textContent = 'Scan VIN QR code';
+    document.getElementById('banner').classList.remove('success');
 
     try {
       videoStream = await navigator.mediaDevices.getUserMedia({
@@ -393,20 +452,15 @@
       video.srcObject = videoStream;
       await video.play();
       scanLoop();
+      return true;
     } catch (e) {
       alert('Camera access denied. Allow Camera in iPhone Settings → Safari, then reload.');
       cancelScan();
+      return false;
     }
   }
 
-  function setBanner(text, success) {
-    const b = document.getElementById('banner');
-    b.textContent = text;
-    b.classList.toggle('success', !!success);
-  }
-
   function scanLoop() {
-    if (state.stage !== 'qr') return;
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -417,24 +471,18 @@
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
       if (code && code.data) {
-        // Extract the VIN-like substring (Mitsubishi sometimes wraps it in *...*)
         const cleaned = code.data.replace(/[^A-Z0-9]/gi, '').toUpperCase();
         const match = cleaned.match(/MMA[A-HJ-NPR-Z0-9]{14}/);
         if (match) {
-          state.vin = match[0];
-          state.stage = 'model';
-          setBanner('✓ VIN: ' + state.vin + '\nNow frame the whole label in the box and tap the circle', true);
-          document.getElementById('captureBtn').style.display = 'block';
           if (navigator.vibrate) navigator.vibrate(80);
-          // play a quick blip if possible
           try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.frequency.value = 1200; o.connect(g); g.connect(ctx.destination);
-            g.gain.value = 0.1;
-            o.start(); o.stop(ctx.currentTime + 0.08);
+            const ac = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.frequency.value = 1200; o.connect(g); g.connect(ac.destination);
+            g.gain.value = 0.1; o.start(); o.stop(ac.currentTime + 0.08);
           } catch (e) {}
+          stopCamera();
+          openEntry(match[0]);
           return;
         }
       }
@@ -442,215 +490,109 @@
     scanRAF = requestAnimationFrame(scanLoop);
   }
 
-  // ============================================================
-  // OCR for model name — crop the strip, binarize, fuzzy-match
-  // ============================================================
-  let ocrWorker = null;
-
-  async function captureForOCR() {
-    if (state.stage !== 'model') return;
-    state.stage = 'ocr';
-    if (scanRAF) cancelAnimationFrame(scanRAF);
-
-    const video = document.getElementById('video');
-    const fullCanvas = document.getElementById('canvas');
-    fullCanvas.width = video.videoWidth;
-    fullCanvas.height = video.videoHeight;
-    const fullCtx = fullCanvas.getContext('2d');
-    fullCtx.drawImage(video, 0, 0);
-
-    // Crop the SQUARE region that matches the on-screen viewfinder.
-    // Viewfinder is 75% width, aspect 1:1, centred.  We grab a slightly larger
-    // box so users don't have to align it perfectly.
-    const vw = fullCanvas.width, vh = fullCanvas.height;
-    const side = Math.min(vw, vh) * 0.82;  // square side
-    const cropX = (vw - side) / 2;
-    const cropY = (vh - side) / 2;
-
-    // Upscale 1.5x — Tesseract is happier with larger fonts but huge images slow it down
-    const scale = 1.5;
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width  = Math.round(side * scale);
-    cropCanvas.height = Math.round(side * scale);
-    const cropCtx = cropCanvas.getContext('2d');
-    cropCtx.imageSmoothingEnabled = true;
-    cropCtx.imageSmoothingQuality = 'high';
-    cropCtx.drawImage(fullCanvas, cropX, cropY, side, side, 0, 0, cropCanvas.width, cropCanvas.height);
-
-    // Light preprocessing only: grayscale + contrast bump.
-    // Don't binarize — kills small text on real-world labels.
-    const img = cropCtx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
-    const d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const g = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114);
-      // 1.4x contrast around midpoint
-      let v = (g - 128) * 1.4 + 128;
-      v = v < 0 ? 0 : v > 255 ? 255 : v;
-      d[i] = d[i+1] = d[i+2] = v;
-    }
-    cropCtx.putImageData(img, 0, 0);
-
-    // Load Tesseract if first time
-    if (!window.Tesseract) {
-      showLoading('Downloading OCR engine (first time only, ~3 MB)…');
-      try { await loadTesseract(); }
-      catch (e) {
-        hideLoading();
-        alert('Could not download OCR engine — check internet, then try again.');
-        resetToModelStage();
-        return;
-      }
-    }
-    showLoading('Reading model name…');
-
-    let raw = '';
-    try {
-      // Use worker API so we can set character whitelist + single-line PSM
-      if (!ocrWorker) {
-        ocrWorker = await Tesseract.createWorker('eng', 1, {
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              document.getElementById('loadingProgress').textContent = Math.round(m.progress * 100) + '%';
-            }
-          },
-        });
-      }
-      await ocrWorker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.-+ ',
-        tessedit_pageseg_mode:   '12',  // PSM 12 = sparse text with OSD (best for busy labels)
-      });
-      const result = await ocrWorker.recognize(cropCanvas);
-      raw = (result.data.text || '').toUpperCase();
-    } catch (e) {
-      hideLoading();
-      alert('OCR failed: ' + (e.message || e));
-      resetToModelStage();
-      return;
-    }
-    hideLoading();
-
-    state.rawOCR = raw;
-    state.model = bestMatch(raw);
-    stopCamera();
-    goToConfirm();
-  }
-
-  function resetToModelStage() {
-    state.stage = 'model';
-    scanLoop();
-  }
-
-  // Try strict regex, then fuzzy-match against known codes
-  function bestMatch(text) {
-    const cleaned = text.replace(/[^A-Z0-9]/g, '');
-    // Strict pattern
-    const strict = cleaned.match(/L[BC]2T[YCJ][JL][A-Z]PDR8/);
-    if (strict) return strict[0];
-
-    // OCR confusion map (bidirectional, weight 0.85 = "close enough")
-    const confusions = {
-      '0':'O','O':'0','1':'I','I':'1','2':'Z','Z':'2',
-      '5':'S','S':'5','8':'B','B':'8','6':'G','G':'6',
-      'D':'0',  // D often misread as 0 in tight fonts
-    };
-    const known = Object.keys(VARIANTS);
-    let bestCode = '', bestScore = 0;
-    for (const code of known) {
-      for (let start = 0; start <= cleaned.length - code.length; start++) {
-        let score = 0;
-        for (let i = 0; i < code.length; i++) {
-          const c = cleaned[start + i], t = code[i];
-          if (c === t) score += 1;
-          else if (confusions[c] === t || confusions[t] === c) score += 0.85;
-        }
-        const norm = score / code.length;
-        if (norm > bestScore) { bestScore = norm; bestCode = code; }
-      }
-    }
-    return bestScore >= 0.75 ? bestCode : '';   // 75 % threshold
-  }
-
-  function loadTesseract() {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  function showLoading(msg) {
-    document.getElementById('loadingMsg').textContent = msg;
-    document.getElementById('loadingProgress').textContent = '';
-    document.getElementById('loading').classList.add('show');
-  }
-  function hideLoading() { document.getElementById('loading').classList.remove('show'); }
-
   function stopCamera() {
-    if (videoStream) {
-      videoStream.getTracks().forEach(t => t.stop());
-      videoStream = null;
-    }
+    if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
     if (scanRAF) cancelAnimationFrame(scanRAF);
   }
 
   function cancelScan() {
     stopCamera();
-    state.stage = 'idle';
     document.getElementById('scan').style.display = 'none';
-    document.getElementById('home').style.display = 'flex';
-  }
-
-  // ============================================================
-  // Confirm screen
-  // ============================================================
-  function goToConfirm() {
-    document.getElementById('scan').style.display = 'none';
-    document.getElementById('confirm').style.display = 'flex';
-    document.getElementById('vinInput').value = state.vin || '';
-    document.getElementById('modelInput').value = state.model || '';
-    const hint = document.getElementById('ocrHint');
-    if (state.rawOCR) {
-      hint.style.display = 'block';
-      hint.textContent = 'OCR read: "' + state.rawOCR.replace(/\s+/g, ' ').trim() + '"';
-    } else {
-      hint.style.display = 'none';
-    }
-    updateDecoded();
-  }
-
-  function cancelConfirm() {
-    document.getElementById('confirm').style.display = 'none';
-    document.getElementById('home').style.display = 'flex';
-  }
-
-  function saveRecord() {
-    const vin   = document.getElementById('vinInput').value.trim().toUpperCase();
-    const model = document.getElementById('modelInput').value.trim().toUpperCase();
-    if (!vin && !model) { alert('Need at least a VIN or Model Name.'); return; }
-    const records = loadRecords();
-    records.push({ vin, model, t: Date.now() });
-    saveRecords(records);
-    document.getElementById('confirm').style.display = 'none';
     document.getElementById('home').style.display = 'flex';
     renderRecords();
   }
 
-  function updateDecoded() {
-    const vin   = document.getElementById('vinInput').value.trim().toUpperCase();
-    const model = document.getElementById('modelInput').value.trim().toUpperCase();
-    const dec = decodeFromModel(model) || decodeFromVIN(vin);
-    if (dec) {
-      document.getElementById('decTrim').textContent   = 'Triton ' + dec.trim;
-      document.getElementById('decConfig').textContent = [dec.body, dec.drive, dec.trans].filter(Boolean).join(' · ');
-    } else {
-      document.getElementById('decTrim').textContent   = '—';
-      document.getElementById('decConfig').textContent = 'Enter a valid VIN or 11-char Model Name';
-    }
+  // ============================================================
+  // Entry screen
+  // ============================================================
+  let currentEntry = { vin: '', colour: '', trim: '', key: '', mfg: '' };
+
+  function openEntry(vin) {
+    currentEntry = { vin, colour: '', trim: '', key: '', mfg: '' };
+
+    document.getElementById('scan').style.display = 'none';
+    document.getElementById('entry').style.display = 'flex';
+
+    const dec = decodeFromVIN(vin);
+    document.getElementById('vinPill').textContent = vin;
+    document.getElementById('vinDecoded').textContent = dec
+      ? `${dec.body} · ${dec.drive} · ${dec.trans}`
+      : 'Unrecognised VIN';
+
+    // Colours
+    const cg = document.getElementById('colourGrid');
+    cg.innerHTML = COLOURS.map((c, i) => `
+      <button class="colour-btn" data-i="${i}" onclick="pickColour(${i})">
+        <div class="swatch" style="background:${c.hex}"></div>
+        <div class="name">${c.name}</div>
+      </button>
+    `).join('');
+
+    // Trims (filtered)
+    const trims = availableTrims(dec);
+    const tg = document.getElementById('trimGrid');
+    tg.className = 'trims cols-' + Math.min(4, trims.length);
+    tg.innerHTML = trims.map(t => `
+      <button class="trim-btn" onclick="pickTrim('${t.replace(/'/g, "\\'")}')">${t}</button>
+    `).join('');
+
+    // Auto-select if only one trim possible (saves a tap)
+    if (trims.length === 1) pickTrim(trims[0]);
+
+    document.getElementById('keyInput').value = '';
+    document.getElementById('mfgInput').value = '';
+    updateSaveState();
   }
-  document.getElementById('vinInput').addEventListener('input', updateDecoded);
-  document.getElementById('modelInput').addEventListener('input', updateDecoded);
+
+  function pickColour(i) {
+    currentEntry.colour = COLOURS[i].name;
+    document.querySelectorAll('.colour-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelector('.colour-btn[data-i="' + i + '"]').classList.add('selected');
+    updateSaveState();
+  }
+
+  function pickTrim(trim) {
+    currentEntry.trim = trim;
+    document.querySelectorAll('.trim-btn').forEach(b => {
+      b.classList.toggle('selected', b.textContent === trim);
+    });
+    updateSaveState();
+  }
+
+  function updateSaveState() {
+    document.getElementById('saveBtn').disabled = !(currentEntry.colour && currentEntry.trim);
+  }
+
+  function cancelEntry() {
+    document.getElementById('entry').style.display = 'none';
+    document.getElementById('home').style.display = 'flex';
+    renderRecords();
+  }
+
+  async function saveEntry() {
+    currentEntry.key = document.getElementById('keyInput').value.trim().toUpperCase();
+    currentEntry.mfg = document.getElementById('mfgInput').value.trim().toUpperCase();
+    if (!currentEntry.colour || !currentEntry.trim) return;
+
+    const records = loadRecords();
+    records.push({ ...currentEntry, t: Date.now() });
+    saveRecords(records);
+    savedThisSession++;
+
+    // Dismiss keyboard so camera screen isn't covered
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+    // Straight back to camera for next vehicle
+    const ok = await startScan();
+    if (ok) showToast('✓ Saved · ' + savedThisSession + ' this session');
+  }
+
+  function showToast(text) {
+    const t = document.getElementById('scanToast');
+    t.textContent = text;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
 
   // ============================================================
   // CSV export
@@ -658,22 +600,21 @@
   function exportCSV() {
     const records = loadRecords();
     if (records.length === 0) { alert('No records to export yet.'); return; }
-    let csv = 'When,VIN,Model Name,Trim,Body,Drive,Transmission\n';
+    const cols = ['When','VIN','Trim','Colour','Body','Drive','Transmission','Key','Mfg ID'];
+    let csv = cols.join(',') + '\n';
     records.forEach(r => {
-      const d = decodeFromModel(r.model) || decodeFromVIN(r.vin) || {};
-      csv += [
+      const d = decodeFromVIN(r.vin) || {};
+      const row = [
         new Date(r.t).toISOString(),
-        r.vin || '',
-        r.model || '',
-        d.trim || '',
-        d.body || '',
-        d.drive || '',
-        d.trans || ''
-      ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',') + '\n';
+        r.vin || '', r.trim || '', r.colour || '',
+        d.body || '', d.drive || '', d.trans || '',
+        r.key || '', r.mfg || '',
+      ];
+      csv += row.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\n';
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url;
     a.download = 'triton_scans_' + new Date().toISOString().slice(0,10) + '.csv';
     document.body.appendChild(a);
@@ -683,9 +624,19 @@
   }
 
   // ============================================================
-  // Wire up + initial render
+  // Wire up
   // ============================================================
   document.getElementById('fab').addEventListener('click', startScan);
+  document.getElementById('keyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('mfgInput').focus(); }
+  });
+  document.getElementById('mfgInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!document.getElementById('saveBtn').disabled) saveEntry();
+    }
+  });
+
   renderRecords();
   </script>
 </body>
