@@ -5,21 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Triton Scan">
+  <meta name="apple-mobile-web-app-title" content="VIN Scan">
   <meta name="theme-color" content="#000000">
 
-  <title>Triton Scanner</title>
+  <title>Dealership VIN Scanner</title>
 
-  <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"Triton Scanner","short_name":"Triton","start_url":"./","display":"standalone","background_color":"%23ffffff","theme_color":"%23000000","orientation":"portrait","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22110%22 fill=%22%23000000%22/><text x=%22256%22 y=%22340%22 font-family=%22-apple-system,system-ui,sans-serif%22 font-size=%22260%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22>T</text></svg>","sizes":"512x512","type":"image/svg+xml","purpose":"any"}]}'>
-  <link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="%23000000"/><text x="256" y="340" font-family="-apple-system,system-ui,sans-serif" font-size="260" font-weight="700" fill="white" text-anchor="middle">T</text></svg>'>
+  <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"Dealership VIN Scanner","short_name":"VIN Scan","start_url":"./","display":"standalone","background_color":"%23ffffff","theme_color":"%23000000","orientation":"portrait","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22110%22 fill=%22%23000%22/><g fill=%22white%22><rect x=%2280%22 y=%22150%22 width=%2218%22 height=%22212%22/><rect x=%22110%22 y=%22150%22 width=%228%22 height=%22212%22/><rect x=%22130%22 y=%22150%22 width=%2222%22 height=%22212%22/><rect x=%22164%22 y=%22150%22 width=%2210%22 height=%22212%22/><rect x=%22188%22 y=%22150%22 width=%2218%22 height=%22212%22/><rect x=%22216%22 y=%22150%22 width=%228%22 height=%22212%22/><rect x=%22238%22 y=%22150%22 width=%2222%22 height=%22212%22/><rect x=%22270%22 y=%22150%22 width=%2212%22 height=%22212%22/><rect x=%22294%22 y=%22150%22 width=%2218%22 height=%22212%22/><rect x=%22322%22 y=%22150%22 width=%228%22 height=%22212%22/><rect x=%22342%22 y=%22150%22 width=%2222%22 height=%22212%22/><rect x=%22374%22 y=%22150%22 width=%2210%22 height=%22212%22/><rect x=%22394%22 y=%22150%22 width=%2218%22 height=%22212%22/><rect x=%22420%22 y=%22150%22 width=%228%22 height=%22212%22/></g></svg>","sizes":"512x512","type":"image/svg+xml","purpose":"any"}]}'>
+  <link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="%23000"/><g fill="white"><rect x="80" y="150" width="18" height="212"/><rect x="110" y="150" width="8" height="212"/><rect x="130" y="150" width="22" height="212"/><rect x="164" y="150" width="10" height="212"/><rect x="188" y="150" width="18" height="212"/><rect x="216" y="150" width="8" height="212"/><rect x="238" y="150" width="22" height="212"/><rect x="270" y="150" width="12" height="212"/><rect x="294" y="150" width="18" height="212"/><rect x="322" y="150" width="8" height="212"/><rect x="342" y="150" width="22" height="212"/><rect x="374" y="150" width="10" height="212"/><rect x="394" y="150" width="18" height="212"/><rect x="420" y="150" width="8" height="212"/></g></svg>'>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
-      background: #ffffff;
-      color: #000000;
+      background: #ffffff; color: #000000;
       -webkit-font-smoothing: antialiased;
       overflow: hidden;
     }
@@ -27,25 +26,21 @@
     /* High-contrast topbar */
     .topbar {
       padding: calc(env(safe-area-inset-top) + 14px) 14px 14px;
-      background: #000000;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background: #000000; color: #ffffff;
+      display: flex; align-items: center; justify-content: space-between;
       gap: 8px;
     }
+    .topbar.brand-mits { background: #000000; }
+    .topbar.brand-suzu { background: #0d1f4a; }
     .topbar .title {
       flex: 1; text-align: center;
       font-weight: 700; font-size: 18px; letter-spacing: 0.3px;
     }
-    .topbar .left, .topbar .right {
-      min-width: 70px; display: flex; align-items: center;
-    }
+    .topbar .left, .topbar .right { min-width: 70px; display: flex; align-items: center; }
     .topbar .right { justify-content: flex-end; }
     .topbar button {
       background: transparent; border: 0; color: #ffffff;
-      font-size: 17px; font-weight: 600;
-      padding: 6px 10px; cursor: pointer;
+      font-size: 17px; font-weight: 600; padding: 6px 10px; cursor: pointer;
     }
     .topbar .save-btn {
       background: #ffffff; color: #000000;
@@ -58,26 +53,47 @@
       font-weight: 800; font-size: 14px;
     }
 
+    /* Brand toggle (segmented control) */
+    .brand-bar {
+      background: #f0f0f0; padding: 8px;
+      border-bottom: 1px solid #d0d0d0;
+      display: flex; gap: 6px;
+    }
+    .brand-btn {
+      flex: 1; padding: 11px 10px;
+      background: #fff; border: 2px solid #ccc;
+      border-radius: 10px;
+      font-size: 15px; font-weight: 800;
+      color: #333; cursor: pointer;
+    }
+    .brand-btn.selected.mits { background: #000; color: #fff; border-color: #000; }
+    .brand-btn.selected.suzu { background: #0d1f4a; color: #fff; border-color: #0d1f4a; }
+
     /* ============ HOME ============ */
     #home { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
     .records {
       flex: 1; overflow-y: auto; padding: 8px;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: 110px;
+      -webkit-overflow-scrolling: touch; padding-bottom: 180px;
     }
     .record {
-      background: #ffffff; border-radius: 12px; padding: 14px;
-      margin-bottom: 8px; border: 1px solid #d0d0d0;
-      position: relative;
+      background: #fff; border-radius: 12px; padding: 14px;
+      margin-bottom: 8px; border: 1px solid #d0d0d0; position: relative;
+      cursor: pointer;
     }
-    .record .top-line {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
-    }
+    .record:active { background: #f0f0f0; }
+    .record .top-line { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
     .record .swatch {
       width: 22px; height: 22px; border-radius: 50%;
       border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0;
     }
-    .record .trim { font-weight: 800; font-size: 17px; }
+    .record .brand-tag {
+      font-size: 10px; font-weight: 800;
+      padding: 2px 6px; border-radius: 4px;
+      color: #fff; letter-spacing: 0.5px;
+    }
+    .record .brand-tag.mits { background: #000; }
+    .record .brand-tag.suzu { background: #0d1f4a; }
+    .record .title-line { font-weight: 800; font-size: 17px; flex: 1; }
     .record .body-line { color: #000; font-size: 14px; }
     .record .meta {
       display: flex; gap: 14px;
@@ -88,10 +104,15 @@
       font-family: "SF Mono", Menlo, monospace;
       font-size: 11px; color: #777; margin-top: 4px;
     }
+    .record .edit-hint {
+      position: absolute; top: 12px; right: 38px;
+      font-size: 11px; color: #888;
+    }
     .record .del {
       position: absolute; top: 8px; right: 8px;
       background: transparent; border: 0; color: #999;
       font-size: 20px; padding: 4px 10px; cursor: pointer;
+      z-index: 2;
     }
     .empty {
       text-align: center; padding: 60px 30px; color: #444;
@@ -99,18 +120,34 @@
     }
     .empty .big { font-size: 56px; margin-bottom: 14px; color: #000; }
 
-    .fab {
+    /* FABs */
+    .fab-stack {
       position: fixed;
       bottom: calc(env(safe-area-inset-bottom) + 22px);
       right: 22px;
+      display: flex; flex-direction: column; gap: 12px;
+      align-items: flex-end;
+      z-index: 5;
+    }
+    .fab {
       width: 70px; height: 70px;
       border-radius: 50%;
-      background: #000000; color: #ffffff; border: 0;
+      background: #000; color: #fff; border: 0;
       font-size: 38px; font-weight: 300; line-height: 70px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-      cursor: pointer; z-index: 5;
+      cursor: pointer;
     }
+    .fab.brand-suzu { background: #0d1f4a; }
     .fab:active { transform: scale(0.93); }
+    .fab-small {
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      background: #555; color: #fff; border: 0;
+      font-size: 22px; font-weight: 600; line-height: 50px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+    .fab-small:active { transform: scale(0.93); }
 
     /* ============ SCAN ============ */
     #scan { display: none; height: 100vh; background: black; position: relative; }
@@ -120,22 +157,23 @@
       position: absolute;
       top: calc(env(safe-area-inset-top) + 12px);
       left: 12px; right: 12px;
-      background: rgba(0,0,0,0.78);
-      color: white;
-      padding: 16px 18px;
-      border-radius: 12px;
+      background: rgba(0,0,0,0.78); color: white;
+      padding: 16px 18px; border-radius: 12px;
       font-size: 17px; font-weight: 700;
       text-align: center; line-height: 1.3;
     }
     .scan-banner.success { background: rgba(0, 160, 80, 0.95); }
-    .viewfinder {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 75%; max-width: 320px;
-      aspect-ratio: 1;
-      pointer-events: none;
+    .scan-banner .sub {
+      display: block; font-size: 13px; font-weight: 500;
+      margin-top: 4px; opacity: 0.85;
     }
+    .viewfinder {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%; max-width: 360px;
+      aspect-ratio: 1.4 / 1; pointer-events: none;
+    }
+    .viewfinder.qr { aspect-ratio: 1; max-width: 320px; }
     .viewfinder::before, .viewfinder::after,
     .viewfinder > div::before, .viewfinder > div::after {
       content: ''; position: absolute;
@@ -146,18 +184,24 @@
     .viewfinder::after  { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
     .viewfinder > div::before { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
     .viewfinder > div::after  { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
-
-    .scan-cancel {
+    .scan-bottom {
       position: absolute;
       bottom: calc(env(safe-area-inset-bottom) + 30px);
-      left: 50%; transform: translateX(-50%);
-      padding: 14px 32px;
-      background: rgba(0,0,0,0.7);
-      color: white; border-radius: 30px; border: 2px solid rgba(255,255,255,0.6);
-      font-size: 17px; font-weight: 700;
+      left: 0; right: 0;
+      display: flex; justify-content: center; gap: 16px;
+      padding: 0 16px;
     }
-
-    /* Saved toast on scan screen */
+    .scan-bottom button {
+      padding: 14px 26px;
+      background: rgba(0,0,0,0.7); color: white;
+      border-radius: 30px; border: 2px solid rgba(255,255,255,0.6);
+      font-size: 16px; font-weight: 700;
+      cursor: pointer;
+    }
+    .scan-bottom button.primary {
+      background: rgba(255,255,255,0.9); color: #000;
+      border-color: rgba(255,255,255,0.95);
+    }
     .toast {
       position: fixed;
       top: calc(env(safe-area-inset-top) + 70px);
@@ -174,83 +218,112 @@
 
     /* ============ ENTRY ============ */
     #entry { display: none; flex-direction: column; height: 100vh; background: #f5f5f5; }
-    .entry-body {
-      flex: 1; overflow-y: auto; padding: 12px;
-      -webkit-overflow-scrolling: touch;
-    }
+    .entry-body { flex: 1; overflow-y: auto; padding: 10px; -webkit-overflow-scrolling: touch; }
 
     .vin-pill {
       background: #000; color: #fff;
-      padding: 10px 14px; border-radius: 10px;
+      padding: 8px 14px; border-radius: 10px;
       font-family: "SF Mono", Menlo, monospace;
-      font-size: 14px; font-weight: 800;
-      text-align: center; margin-bottom: 6px; letter-spacing: 0.5px;
+      font-size: 13px; font-weight: 800;
+      text-align: center; margin-bottom: 4px; letter-spacing: 0.5px;
+      cursor: pointer;
     }
+    .vin-pill.brand-suzu { background: #0d1f4a; }
     .vin-decoded {
-      color: #000; font-size: 14px; text-align: center;
-      margin-bottom: 14px; font-weight: 700;
+      color: #000; font-size: 13px; text-align: center;
+      margin-bottom: 8px; font-weight: 700;
     }
 
     .section-label {
-      font-size: 12px; font-weight: 800;
-      color: #000; letter-spacing: 1.2px;
+      font-size: 11px; font-weight: 800;
+      color: #000; letter-spacing: 1.1px;
       text-transform: uppercase;
-      margin: 12px 4px 6px;
+      margin: 10px 4px 5px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* Model grid 3x2 (or more) */
+    .models {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .model-btn {
+      background: #fff;
+      border: 3px solid #ccc;
+      border-radius: 10px;
+      padding: 10px 4px;
+      font-size: 13px; font-weight: 800;
+      color: #000;
+      cursor: pointer;
+      text-align: center;
+      line-height: 1.15;
+      min-height: 52px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .model-btn:active { transform: scale(0.95); }
+    .model-btn.selected {
+      background: #000; color: #fff;
+      border-color: #000;
+    }
+    .model-btn.selected.brand-suzu {
+      background: #0d1f4a; border-color: #0d1f4a;
     }
 
     /* Colour grid */
     .colours {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
+      gap: 6px;
     }
     .colour-btn {
       background: #fff;
       border: 3px solid #ccc;
       border-radius: 12px;
-      padding: 6px;
+      padding: 5px;
       cursor: pointer;
       display: flex; flex-direction: column;
-      align-items: center; gap: 4px;
-      min-height: 86px;
+      align-items: center; gap: 3px;
+      min-height: 76px;
     }
     .colour-btn:active { transform: scale(0.95); }
     .colour-btn.selected {
       border-color: #000; border-width: 4px;
       background: #ebebeb;
     }
+    .colour-btn.selected.brand-suzu { border-color: #0d1f4a; }
     .colour-btn .swatch {
       width: 100%; aspect-ratio: 1.4 / 1;
       border-radius: 6px;
       border: 1px solid rgba(0,0,0,0.2);
     }
     .colour-btn .name {
-      font-size: 11px; font-weight: 800;
-      text-align: center; line-height: 1.1;
-      color: #000;
+      font-size: 10.5px; font-weight: 800;
+      text-align: center; line-height: 1.1; color: #000;
     }
 
-    /* Trim buttons */
-    .trims { display: grid; gap: 8px; }
+    /* Trim grid */
+    .trims { display: grid; gap: 6px; }
     .trims.cols-1 { grid-template-columns: 1fr; }
     .trims.cols-2 { grid-template-columns: 1fr 1fr; }
     .trims.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
     .trims.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .trims.cols-5 { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
     .trim-btn {
       background: #fff;
       border: 3px solid #ccc;
-      border-radius: 12px;
-      padding: 18px 8px;
-      font-size: 19px; font-weight: 800;
+      border-radius: 10px;
+      padding: 14px 6px;
+      font-size: 16px; font-weight: 800;
       color: #000;
-      cursor: pointer;
-      text-align: center;
+      cursor: pointer; text-align: center;
     }
     .trim-btn:active { transform: scale(0.95); }
     .trim-btn.selected {
       background: #000; color: #fff;
       border-color: #000;
     }
+    .trim-btn.selected.brand-suzu { background: #0d1f4a; border-color: #0d1f4a; }
 
     /* Text input fields */
     .field-row {
@@ -258,67 +331,143 @@
       background: #fff;
       border: 3px solid #ccc;
       border-radius: 12px;
-      padding: 10px 14px;
-      margin-bottom: 8px;
+      padding: 8px 14px;
+      margin-bottom: 6px;
       gap: 12px;
     }
     .field-row:focus-within { border-color: #000; }
     .field-row label {
-      font-size: 13px; font-weight: 800;
+      font-size: 12px; font-weight: 800;
       color: #000; letter-spacing: 0.5px;
       text-transform: uppercase;
-      min-width: 72px;
+      min-width: 64px;
     }
     .field-row input {
       flex: 1;
       border: 0; outline: 0; background: transparent;
-      font-size: 20px; font-weight: 800;
+      font-size: 19px; font-weight: 800;
       color: #000;
       font-family: "SF Mono", Menlo, monospace;
-      padding: 6px 0;
-      min-width: 0;
+      padding: 6px 0; min-width: 0;
     }
+
+    /* Modal (for manual VIN entry) */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100; padding: 20px;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px;
+      padding: 20px; width: 100%; max-width: 380px;
+    }
+    .modal h2 {
+      font-size: 18px; margin-bottom: 12px; text-align: center;
+    }
+    .modal .vin-input {
+      width: 100%;
+      padding: 14px; font-size: 18px;
+      font-family: "SF Mono", Menlo, monospace;
+      font-weight: 800; text-transform: uppercase;
+      border: 3px solid #ccc; border-radius: 10px;
+      letter-spacing: 1px; text-align: center;
+      margin-bottom: 12px; outline: 0;
+    }
+    .modal .vin-input:focus { border-color: #000; }
+    .modal .vin-counter {
+      text-align: center; font-size: 12px; color: #666; margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .modal-buttons {
+      display: flex; gap: 8px;
+    }
+    .modal-buttons button {
+      flex: 1; padding: 14px;
+      font-size: 16px; font-weight: 800;
+      border-radius: 10px; border: 0; cursor: pointer;
+    }
+    .modal-buttons .cancel { background: #e5e5e5; color: #000; }
+    .modal-buttons .ok { background: #000; color: #fff; }
+    .modal-buttons .ok:disabled { opacity: 0.35; }
+    .modal-buttons .ok.brand-suzu { background: #0d1f4a; }
+
+    /* Entry header brand toggle (small) */
+    .entry-brand-toggle {
+      display: flex; gap: 6px;
+      margin-bottom: 8px; padding: 4px;
+      background: #e5e5e5; border-radius: 10px;
+    }
+    .entry-brand-toggle button {
+      flex: 1; padding: 8px;
+      background: transparent; border: 0;
+      font-size: 14px; font-weight: 800;
+      color: #555; cursor: pointer; border-radius: 7px;
+    }
+    .entry-brand-toggle button.selected.mits { background: #000; color: #fff; }
+    .entry-brand-toggle button.selected.suzu { background: #0d1f4a; color: #fff; }
   </style>
 </head>
 <body>
 
-  <!-- ============ HOME ============ -->
+  <!-- HOME -->
   <div id="home">
-    <div class="topbar">
+    <div class="topbar brand-mits" id="homeTopbar">
       <div class="left"><button onclick="exportCSV()">Export</button></div>
-      <div class="title">Triton</div>
+      <div class="title" id="homeTitle">Dealership Scanner</div>
       <div class="right"><span class="records-count" id="recCount">0</span></div>
     </div>
+    <div class="brand-bar">
+      <button class="brand-btn mits selected" id="brandBtnMits" onclick="setBrand('mitsubishi')">Mitsubishi</button>
+      <button class="brand-btn suzu" id="brandBtnSuzu" onclick="setBrand('suzuki')">Suzuki</button>
+    </div>
     <div class="records" id="records"></div>
-    <button class="fab" id="fab">+</button>
+    <div class="fab-stack">
+      <button class="fab-small" id="manualFab" onclick="openManualEntry()" title="Enter VIN manually">⌨</button>
+      <button class="fab" id="fab" onclick="startScan()">+</button>
+    </div>
   </div>
 
-  <!-- ============ SCAN ============ -->
+  <!-- SCAN -->
   <div id="scan">
     <video id="video" playsinline autoplay muted></video>
     <canvas id="canvas"></canvas>
-    <div class="scan-banner" id="banner">Scan VIN QR code</div>
-    <div class="viewfinder"><div></div></div>
-    <button class="scan-cancel" onclick="cancelScan()">Cancel</button>
+    <div class="scan-banner" id="banner">
+      Scan VIN
+      <span class="sub" id="bannerSub">Aim at the QR code on the compliance label</span>
+    </div>
+    <div class="viewfinder" id="viewfinder"><div></div></div>
+    <div class="scan-bottom">
+      <button onclick="cancelScan()">Cancel</button>
+      <button class="primary" onclick="openManualEntry()">⌨ Type VIN</button>
+    </div>
     <div class="toast" id="scanToast"></div>
   </div>
 
-  <!-- ============ ENTRY ============ -->
+  <!-- ENTRY -->
   <div id="entry">
-    <div class="topbar">
+    <div class="topbar brand-mits" id="entryTopbar">
       <div class="left"><button onclick="cancelEntry()">Cancel</button></div>
-      <div class="title">New Entry</div>
+      <div class="title" id="entryTitle">New Entry</div>
       <div class="right"><button class="save-btn" id="saveBtn" onclick="saveEntry()" disabled>Save</button></div>
     </div>
     <div class="entry-body">
-      <div class="vin-pill" id="vinPill">—</div>
+      <div class="vin-pill" id="vinPill" onclick="editVIN()">—</div>
       <div class="vin-decoded" id="vinDecoded">—</div>
+
+      <div class="entry-brand-toggle" id="entryBrandToggle">
+        <button class="mits selected" data-b="mitsubishi" onclick="setEntryBrand('mitsubishi')">Mitsubishi</button>
+        <button class="suzu" data-b="suzuki" onclick="setEntryBrand('suzuki')">Suzuki</button>
+      </div>
+
+      <div class="section-label">Model</div>
+      <div class="models" id="modelGrid"></div>
+
+      <div class="section-label">Trim</div>
+      <div class="trims" id="trimGrid"></div>
 
       <div class="section-label">Colour</div>
       <div class="colours" id="colourGrid"></div>
-
-      <div class="section-label">Model</div>
-      <div class="trims" id="trimGrid"></div>
 
       <div class="section-label">Details</div>
       <div class="field-row">
@@ -333,86 +482,287 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <!-- Manual VIN Entry Modal -->
+  <div class="modal-backdrop" id="manualModal">
+    <div class="modal">
+      <h2 id="manualTitle">Enter VIN manually</h2>
+      <input class="vin-input" id="manualVinInput" maxlength="17"
+        autocapitalize="characters" autocomplete="off" spellcheck="false"
+        placeholder="17-character VIN" />
+      <div class="vin-counter"><span id="vinCounter">0</span>/17 characters</div>
+      <div class="modal-buttons">
+        <button class="cancel" onclick="closeManualEntry()">Cancel</button>
+        <button class="ok" id="manualOkBtn" onclick="submitManualEntry()" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
   <script>
-  // ============================================================
-  // Triton AU colour palette — edit freely
-  // ============================================================
-  const COLOURS = [
-    { name: 'White Diamond',   hex: '#F2F2F0' },
-    { name: 'Sterling Silver', hex: '#B7B9BC' },
-    { name: 'Graphite Grey',   hex: '#4A4D52' },
-    { name: 'Black Mica',      hex: '#14171C' },
-    { name: 'Impulse Blue',    hex: '#2E4F73' },
-    { name: 'Red Solid',       hex: '#B71F2A' },
-    { name: 'Yamabuki Orange', hex: '#D87231' },
-    { name: 'Other',           hex: '#cccccc' },
+  /* ============================================================
+   * BRAND + MODEL CONFIG
+   * Each model has:
+   *   brand:       'mitsubishi' | 'suzuki'
+   *   key:         unique slug
+   *   name:        display name
+   *   trims:       array of trim names
+   *   vinPrefixes: array of VIN prefix strings used to auto-detect
+   *                (use null/empty if no RVD yet)
+   *   vinHint:     human-readable VIN structure note
+   * ============================================================ */
+
+  const MODELS = [
+    /* ---------- MITSUBISHI ---------- */
+    {
+      brand: 'mitsubishi',
+      key: 'triton',
+      name: 'Triton',
+      trims: ['GLX', 'GLX+', 'GLX-R', 'GLS', 'GSR'],
+      // Triton VIN handled by special decoder (body+drive vary in VIN)
+      vinPrefixes: ['MMA'], // need decoder check too
+      vinHint: 'VTA-062563',
+    },
+    {
+      brand: 'mitsubishi',
+      key: 'pajero_sport',
+      name: 'Pajero Sport',
+      trims: ['GLX', 'GLS', 'Exceed', 'GSR'],
+      vinPrefixes: ['MMAGUKS10', 'MK2GUKS10'],
+      vinHint: 'VTA-047316',
+    },
+    {
+      brand: 'mitsubishi',
+      key: 'outlander',
+      name: 'Outlander',
+      trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed'],
+      vinPrefixes: ['JMFXTGM4W'],
+      vinHint: 'VTA-051624',
+    },
+    {
+      brand: 'mitsubishi',
+      key: 'outlander_phev',
+      name: 'Outlander PHEV',
+      // MY25+ has 4 trims (ES, Aspire, Exceed, GSR per RVD marketing string).
+      // Exceed Tourer kept in list for MY24 stock still in service.
+      trims: ['ES', 'Aspire', 'Exceed', 'Exceed Tourer', 'GSR'],
+      vinPrefixes: ['JMFXDGN0W'],
+      vinHint: 'VTA-060069 (GN, PHEV — note "D" at pos 5)',
+    },
+    {
+      brand: 'mitsubishi',
+      key: 'eclipse_cross',
+      name: 'Eclipse Cross',
+      trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed', 'GSR'],
+      vinPrefixes: ['JMFXTGK1W'],
+      vinHint: 'VTA-048510 (ICE)',
+    },
+    {
+      brand: 'mitsubishi',
+      key: 'eclipse_cross_phev',
+      name: 'Eclipse Cross PHEV',
+      trims: ['Aspire', 'Exceed', 'GSR'],
+      vinPrefixes: ['JMFXTGL3W'],
+      vinHint: 'VTA-048510 (PHEV variants)',
+    },
+    {
+      brand: 'mitsubishi',
+      key: 'asx',
+      name: 'ASX',
+      trims: ['LS', 'Aspire', 'Exceed'],
+      vinPrefixes: ['VF1KJB'],
+      vinHint: 'VTA-064848 (Renault-built France)',
+    },
+
+    /* ---------- SUZUKI ---------- */
+    {
+      brand: 'suzuki',
+      key: 'jimny',
+      name: 'Jimny',
+      trims: ['Lite', 'GLX'],
+      vinPrefixes: ['JSAGJB74V'],
+      vinHint: 'VTA-049434 (3-door, Japan-built)',
+    },
+    {
+      brand: 'suzuki',
+      key: 'jimny_xl',
+      name: 'Jimny XL',
+      trims: ['GLX'],
+      vinPrefixes: ['MA3JJC74W'],
+      vinHint: 'VTA-061645 (5-door, India-built)',
+    },
+    {
+      brand: 'suzuki',
+      key: 'fronx',
+      name: 'Fronx',
+      trims: ['GL', 'GLX'],
+      vinPrefixes: ['MBHKWDB3S', 'MBHKW'],
+      vinHint: 'VTA-064700 (India-built, mild hybrid)',
+    },
+    {
+      brand: 'suzuki',
+      key: 'swift',
+      name: 'Swift',
+      // Current 4th gen Swift (UZ / ZC83S) — Z12E mild hybrid 1.2L
+      trims: ['GL', 'GLX'],
+      vinPrefixes: ['JSAZCEDS'],
+      vinHint: 'VTA-063358 (Japan-built, Z12E mild hybrid)',
+    },
   ];
 
-  // ============================================================
-  // Trim options by VIN config — body code (pos 4) + drive (pos 7)
-  // ============================================================
-  const TRIMS_BY_CONFIG = {
-    'CC': ['GLX+'],                              // Club Cab Pickup 4x4
-    'JB': ['GLX'],                               // Dual Cab Pickup 4x2
-    'JC': ['GLX+', 'GLX-R', 'GLS', 'GSR'],       // Dual Cab Pickup 4x4
-    'WC': ['GLX'],                               // Club Cab CC 4x4
-    'YB': ['GLX'],                               // Single Cab CC 4x2
-    'YC': ['GLX'],                               // Single Cab CC 4x4
-    'ZC': ['GLX', 'GLS', 'GSR'],                 // Dual Cab CC 4x4
+  /* Triton variant filtering — body+drive codes from VIN positions 4 and 7 */
+  const TRITON_TRIMS_BY_CONFIG = {
+    'CC': ['GLX+'],
+    'JB': ['GLX'],
+    'JC': ['GLX+', 'GLX-R', 'GLS', 'GSR'],
+    'WC': ['GLX'],
+    'YB': ['GLX'],
+    'YC': ['GLX'],
+    'ZC': ['GLX', 'GLS', 'GSR'],
   };
 
-  // ============================================================
-  // VIN decode
-  // ============================================================
-  function decodeFromVIN(vin) {
-    if (!vin || vin.length !== 17 || vin.slice(0,3).toUpperCase() !== 'MMA') return null;
+  /* Colour palettes per brand. Edit freely. */
+  const COLOURS = {
+    mitsubishi: [
+      { name: 'Diamond White',   hex: '#F2F2F0' },
+      { name: 'Sterling Silver', hex: '#B7B9BC' },
+      { name: 'Titanium Grey',   hex: '#5E636B' },
+      { name: 'Graphite Grey',   hex: '#3D4046' },
+      { name: 'Black Diamond',   hex: '#14171C' },
+      { name: 'Sapphire Blue',   hex: '#2E4F73' },
+      { name: 'Red Diamond',     hex: '#9C1B22' },
+      { name: 'Yamabuki Orange', hex: '#D87231' },
+    ],
+    suzuki: [
+      { name: 'Pearl White',     hex: '#F2F2F0' },
+      { name: 'Silky Silver',    hex: '#C7C8CA' },
+      { name: 'Granite Grey',    hex: '#6F727A' },
+      { name: 'Bluish Black',    hex: '#16181C' },
+      { name: 'Speedy Blue',     hex: '#1C5BA0' },
+      { name: 'Brisk Blue',      hex: '#2C7DD9' },
+      { name: 'Burning Red',     hex: '#B5232A' },
+      { name: 'Kinetic Yellow',  hex: '#F5C518' },
+    ],
+  };
+
+  /* ============================================================
+   * VIN DECODING
+   * ============================================================ */
+
+  /* ISO 3779 model year — VIN position 10 */
+  const YEAR_MAP = {
+    'P':'2023','R':'2024','S':'2025','T':'2026',
+    'V':'2027','W':'2028','X':'2029','Y':'2030',
+    '1':'2031','2':'2032',
+  };
+  function decodeYearFromVIN(vin) {
+    if (!vin || vin.length !== 17) return '';
+    return YEAR_MAP[vin[9].toUpperCase()] || '';
+  }
+
+  /* Triton special decoder (body+drive+trans from VIN) */
+  function decodeTritonVIN(vin) {
+    if (!vin || vin.length !== 17) return null;
     const v = vin.toUpperCase();
+    if (v.slice(0,3) !== 'MMA') return null;
+    if (!'CJWYZ'.includes(v[3])) return null;
     const bodyMap  = { 'C':'Club Cab Pickup','J':'Dual Cab Pickup','W':'Club Cab Cab Chassis','Y':'Single Cab Cab Chassis','Z':'Dual Cab Cab Chassis' };
     const transMap = { 'J':'Manual','L':'Auto' };
     const driveMap = { 'B':'4x2','C':'4x4' };
     return {
       bodyCode:  v[3],
       driveCode: v[6],
-      body:  bodyMap[v[3]]  || '?',
+      body:  bodyMap[v[3]],
       trans: transMap[v[4]] || '?',
       drive: driveMap[v[6]] || '?',
     };
   }
-  function availableTrims(d) {
-    if (!d) return ['GLX'];
-    return TRIMS_BY_CONFIG[d.bodyCode + d.driveCode] || ['GLX'];
+
+  /* Returns { modelKey, brand } or null */
+  function guessModelFromVIN(vin) {
+    if (!vin || vin.length !== 17) return null;
+    const v = vin.toUpperCase();
+    // Triton needs special body-code check
+    if (decodeTritonVIN(v)) return { modelKey: 'triton', brand: 'mitsubishi' };
+    // Longest prefix wins (so JMFXTGK1W matches Eclipse Cross before MMA matches generic Mitsi)
+    let best = null;
+    for (const m of MODELS) {
+      for (const p of (m.vinPrefixes || [])) {
+        if (!p) continue;
+        if (v.startsWith(p)) {
+          if (!best || p.length > best.matchedPrefix.length) {
+            best = { modelKey: m.key, brand: m.brand, matchedPrefix: p };
+          }
+        }
+      }
+    }
+    return best;
   }
 
-  // ============================================================
-  // Storage
-  // ============================================================
+  function availableTritonTrims(decode) {
+    if (!decode) return null;
+    return TRITON_TRIMS_BY_CONFIG[decode.bodyCode + decode.driveCode] || null;
+  }
+
+  /* ============================================================
+   * STATE + STORAGE
+   * ============================================================ */
+  const STORAGE_KEY = 'mitsu_records_v1';   // kept same so existing data carries over
+
   function loadRecords() {
-    try { return JSON.parse(localStorage.getItem('triton_records_v2') || '[]'); }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
     catch (e) { return []; }
   }
-  function saveRecords(r) { localStorage.setItem('triton_records_v2', JSON.stringify(r)); }
+  function saveRecordsList(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
+
+  let currentBrand = 'mitsubishi';   // home-screen scan mode default
+  let savedThisSession = 0;
+  let editingId = null;              // if set, we're editing an existing record by `t`
+
+  /* ============================================================
+   * HOME SCREEN
+   * ============================================================ */
+  function setBrand(b) {
+    currentBrand = b;
+    document.getElementById('brandBtnMits').classList.toggle('selected', b === 'mitsubishi');
+    document.getElementById('brandBtnSuzu').classList.toggle('selected', b === 'suzuki');
+    const tb = document.getElementById('homeTopbar');
+    tb.classList.toggle('brand-mits', b === 'mitsubishi');
+    tb.classList.toggle('brand-suzu', b === 'suzuki');
+    document.getElementById('homeTitle').textContent =
+      b === 'mitsubishi' ? 'Mitsubishi' : 'Suzuki';
+    document.getElementById('fab').classList.toggle('brand-suzu', b === 'suzuki');
+  }
 
   function renderRecords() {
     const records = loadRecords();
     document.getElementById('recCount').textContent = records.length;
     const el = document.getElementById('records');
     if (records.length === 0) {
-      el.innerHTML = '<div class="empty"><div class="big">＋</div>No vehicles scanned yet.<br>Tap the <b>+</b> button to start.</div>';
+      el.innerHTML = '<div class="empty"><div class="big">＋</div>No vehicles scanned yet.<br>Tap the <b>+</b> button to scan,<br>or <b>⌨</b> to enter a VIN manually.</div>';
       return;
     }
-    el.innerHTML = records.slice().reverse().map((r, displayIdx) => {
-      const actualIdx = records.length - 1 - displayIdx;
-      const dec = decodeFromVIN(r.vin) || {};
-      const colour = COLOURS.find(c => c.name === r.colour) || { hex: '#ccc' };
+    el.innerHTML = records.slice().reverse().map((r) => {
+      const model = MODELS.find(m => m.key === r.model);
+      const modelName = model ? model.name : (r.model || '?');
+      const brand = r.brand || (model ? model.brand : 'mitsubishi');
+      const brandLabel = brand === 'suzuki' ? 'SUZU' : 'MITS';
+      const tritonDec = r.model === 'triton' ? decodeTritonVIN(r.vin) : null;
+      const year = decodeYearFromVIN(r.vin);
+      const palette = COLOURS[brand] || COLOURS.mitsubishi;
+      const colour = palette.find(c => c.name === r.colour) || { hex: '#ccc' };
+      const bodyLine = tritonDec
+        ? `${year ? year + ' · ' : ''}${tritonDec.body} · ${tritonDec.drive} · ${tritonDec.trans}`
+        : (year ? year + ' · ' + modelName : modelName);
       return `
-        <div class="record">
-          <button class="del" onclick="deleteRecord(${actualIdx})">✕</button>
+        <div class="record" onclick="openEditEntry(${r.t})">
+          <button class="del" onclick="event.stopPropagation(); deleteRecord(${r.t})">✕</button>
+          <div class="edit-hint">tap to edit</div>
           <div class="top-line">
             <div class="swatch" style="background:${colour.hex}"></div>
-            <div class="trim">${r.trim || '?'} ${r.colour ? '— ' + r.colour : ''}</div>
+            <span class="brand-tag ${brand === 'suzuki' ? 'suzu' : 'mits'}">${brandLabel}</span>
+            <div class="title-line">${modelName} ${r.trim || ''}${r.colour ? ' — ' + r.colour : ''}</div>
           </div>
-          <div class="body-line">${dec.body || '?'} · ${dec.drive || '?'} · ${dec.trans || '?'}</div>
+          <div class="body-line">${bodyLine}</div>
           <div class="meta">
             <span>Key <b>${r.key || '—'}</b></span>
             <span>Mfg <b>${r.mfg || '—'}</b></span>
@@ -422,27 +772,58 @@
     }).join('');
   }
 
-  function deleteRecord(idx) {
+  function deleteRecord(t) {
     if (!confirm('Delete this entry?')) return;
     const records = loadRecords();
-    records.splice(idx, 1);
-    saveRecords(records);
-    renderRecords();
+    const idx = records.findIndex(r => r.t === t);
+    if (idx >= 0) {
+      records.splice(idx, 1);
+      saveRecordsList(records);
+      renderRecords();
+    }
   }
 
-  // ============================================================
-  // Scan
-  // ============================================================
+  /* ============================================================
+   * SCAN — ZXing for both QR (Mitsubishi) and Code 128 (Suzuki)
+   * ============================================================ */
   let videoStream = null;
   let scanRAF = null;
-  let savedThisSession = 0;
+  let zxingReader = null;
+  let scanning = false;
+
+  function buildZxingReader() {
+    if (zxingReader) return zxingReader;
+    const hints = new Map();
+    // Allow both QR and the common 1D barcodes used by Suzuki/Mitsubishi compliance labels
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxingReader = new ZXing.MultiFormatReader();
+    zxingReader.setHints(hints);
+    return zxingReader;
+  }
 
   async function startScan() {
     document.getElementById('home').style.display = 'none';
     document.getElementById('entry').style.display = 'none';
     document.getElementById('scan').style.display = 'block';
-    document.getElementById('banner').textContent = 'Scan VIN QR code';
-    document.getElementById('banner').classList.remove('success');
+
+    // Banner text reflects current brand mode hint
+    const banner = document.getElementById('banner');
+    const sub = document.getElementById('bannerSub');
+    const vf = document.getElementById('viewfinder');
+    banner.classList.remove('success');
+    if (currentBrand === 'suzuki') {
+      banner.innerHTML = 'Scan VIN <span class="sub" id="bannerSub">Aim at the 1D barcode on the compliance label</span>';
+      vf.classList.remove('qr');
+    } else {
+      banner.innerHTML = 'Scan VIN <span class="sub" id="bannerSub">Aim at the QR code on the compliance label</span>';
+      vf.classList.add('qr');
+    }
 
     try {
       videoStream = await navigator.mediaDevices.getUserMedia({
@@ -451,6 +832,7 @@
       const video = document.getElementById('video');
       video.srcObject = videoStream;
       await video.play();
+      scanning = true;
       scanLoop();
       return true;
     } catch (e) {
@@ -461,6 +843,7 @@
   }
 
   function scanLoop() {
+    if (!scanning) return;
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -468,29 +851,44 @@
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
-      if (code && code.data) {
-        const cleaned = code.data.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        const match = cleaned.match(/MMA[A-HJ-NPR-Z0-9]{14}/);
-        if (match) {
-          if (navigator.vibrate) navigator.vibrate(80);
-          try {
-            const ac = new (window.AudioContext || window.webkitAudioContext)();
-            const o = ac.createOscillator(), g = ac.createGain();
-            o.frequency.value = 1200; o.connect(g); g.connect(ac.destination);
-            g.gain.value = 0.1; o.start(); o.stop(ac.currentTime + 0.08);
-          } catch (e) {}
-          stopCamera();
-          openEntry(match[0]);
-          return;
+      try {
+        const reader = buildZxingReader();
+        const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+        const result = reader.decode(binaryBitmap);
+        if (result && result.getText) {
+          const raw = result.getText();
+          const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          // VIN: 17 chars, allowed characters: A-Z digits except I O Q
+          const match = cleaned.match(/[A-HJ-NPR-Z0-9]{17}/);
+          if (match) {
+            handleScannedVIN(match[0]);
+            return;
+          }
         }
+      } catch (e) {
+        // NotFoundException is expected when no code in frame — keep looping silently
+      } finally {
+        try { /* reset between frames */ if (zxingReader && zxingReader.reset) zxingReader.reset(); } catch (e) {}
       }
     }
     scanRAF = requestAnimationFrame(scanLoop);
   }
 
+  function handleScannedVIN(vin) {
+    if (navigator.vibrate) navigator.vibrate(80);
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = 1200; o.connect(g); g.connect(ac.destination);
+      g.gain.value = 0.1; o.start(); o.stop(ac.currentTime + 0.08);
+    } catch (e) {}
+    stopCamera();
+    openEntry(vin);
+  }
+
   function stopCamera() {
+    scanning = false;
     if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
     if (scanRAF) cancelAnimationFrame(scanRAF);
   }
@@ -502,52 +900,231 @@
     renderRecords();
   }
 
-  // ============================================================
-  // Entry screen
-  // ============================================================
-  let currentEntry = { vin: '', colour: '', trim: '', key: '', mfg: '' };
+  /* ============================================================
+   * MANUAL VIN ENTRY
+   * ============================================================ */
+  function openManualEntry() {
+    stopCamera();
+    document.getElementById('scan').style.display = 'none';
+    const input = document.getElementById('manualVinInput');
+    input.value = '';
+    document.getElementById('vinCounter').textContent = '0';
+    document.getElementById('manualOkBtn').disabled = true;
+    document.getElementById('manualModal').classList.add('show');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function closeManualEntry() {
+    document.getElementById('manualModal').classList.remove('show');
+    // Return to home if we were on scan screen
+    if (document.getElementById('scan').style.display !== 'block') {
+      document.getElementById('home').style.display = 'flex';
+    }
+  }
+
+  function submitManualEntry() {
+    const v = document.getElementById('manualVinInput').value.trim().toUpperCase();
+    const cleaned = v.replace(/[^A-HJ-NPR-Z0-9]/g, '');
+    if (cleaned.length !== 17) return;
+    document.getElementById('manualModal').classList.remove('show');
+    document.getElementById('scan').style.display = 'none';
+    openEntry(cleaned);
+  }
+
+  // VIN input validation as user types
+  document.getElementById('manualVinInput').addEventListener('input', e => {
+    let v = e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '');
+    if (v.length > 17) v = v.slice(0, 17);
+    if (e.target.value !== v) e.target.value = v;
+    document.getElementById('vinCounter').textContent = v.length;
+    document.getElementById('manualOkBtn').disabled = (v.length !== 17);
+  });
+  document.getElementById('manualVinInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('manualOkBtn').disabled) {
+      e.preventDefault(); submitManualEntry();
+    }
+  });
+
+  /* ============================================================
+   * ENTRY SCREEN
+   * ============================================================ */
+  let currentEntry = { vin: '', model: '', colour: '', trim: '', key: '', mfg: '', brand: 'mitsubishi' };
 
   function openEntry(vin) {
-    currentEntry = { vin, colour: '', trim: '', key: '', mfg: '' };
+    editingId = null;
+    document.getElementById('entryTitle').textContent = 'New Entry';
+    _openEntryInternal(vin, null);
+  }
+
+  function openEditEntry(t) {
+    const records = loadRecords();
+    const r = records.find(x => x.t === t);
+    if (!r) return;
+    editingId = t;
+    document.getElementById('entryTitle').textContent = 'Edit Entry';
+    _openEntryInternal(r.vin, r);
+  }
+
+  function _openEntryInternal(vin, existing) {
+    currentEntry = {
+      vin,
+      model:  existing ? existing.model  : '',
+      colour: existing ? existing.colour : '',
+      trim:   existing ? existing.trim   : '',
+      key:    existing ? existing.key    : '',
+      mfg:    existing ? existing.mfg    : '',
+      brand:  existing ? (existing.brand || 'mitsubishi') : currentBrand,
+    };
 
     document.getElementById('scan').style.display = 'none';
+    document.getElementById('home').style.display = 'none';
     document.getElementById('entry').style.display = 'flex';
 
-    const dec = decodeFromVIN(vin);
     document.getElementById('vinPill').textContent = vin;
-    document.getElementById('vinDecoded').textContent = dec
-      ? `${dec.body} · ${dec.drive} · ${dec.trans}`
-      : 'Unrecognised VIN';
 
-    // Colours
+    // Identify model from VIN if no existing model
+    const guess = !existing ? guessModelFromVIN(vin) : null;
+    if (guess) {
+      currentEntry.brand = guess.brand;
+      currentEntry.model = guess.modelKey;
+    }
+
+    refreshEntryBrandStyles();
+
+    // Header line
+    const tritonDec = decodeTritonVIN(vin);
+    const year = decodeYearFromVIN(vin);
+    let headerText;
+    if (tritonDec) {
+      headerText = `${year ? year + ' ' : ''}Triton · ${tritonDec.body} · ${tritonDec.drive} · ${tritonDec.trans}`;
+    } else if (guess) {
+      const m = MODELS.find(mm => mm.key === guess.modelKey);
+      headerText = `${year ? year + ' ' : ''}${m.name} (identified from VIN)`;
+    } else if (existing) {
+      const m = MODELS.find(mm => mm.key === existing.model);
+      headerText = `${year ? year + ' ' : ''}${m ? m.name : ''} (editing)`;
+    } else {
+      headerText = year ? `${year} — pick the model below` : 'Tap the model below to set';
+    }
+    document.getElementById('vinDecoded').textContent = headerText;
+
+    renderModelGrid();
+    renderColourGrid();
+    renderTrims();
+
+    document.getElementById('keyInput').value = currentEntry.key || '';
+    document.getElementById('mfgInput').value = currentEntry.mfg || '';
+
+    if (currentEntry.model) {
+      const btn = document.querySelector(`.model-btn[data-key="${currentEntry.model}"]`);
+      if (btn) btn.classList.add('selected');
+    }
+    if (currentEntry.colour) {
+      const palette = COLOURS[currentEntry.brand];
+      const idx = palette.findIndex(c => c.name === currentEntry.colour);
+      if (idx >= 0) {
+        const btn = document.querySelector(`.colour-btn[data-i="${idx}"]`);
+        if (btn) btn.classList.add('selected');
+      }
+    }
+    if (currentEntry.trim) {
+      document.querySelectorAll('.trim-btn').forEach(b => {
+        if (b.textContent === currentEntry.trim) b.classList.add('selected');
+      });
+    }
+
+    updateSaveState();
+  }
+
+  function refreshEntryBrandStyles() {
+    const b = currentEntry.brand;
+    const tb = document.getElementById('entryTopbar');
+    tb.classList.toggle('brand-mits', b === 'mitsubishi');
+    tb.classList.toggle('brand-suzu', b === 'suzuki');
+    document.getElementById('vinPill').classList.toggle('brand-suzu', b === 'suzuki');
+    document.querySelectorAll('#entryBrandToggle button').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.b === b);
+    });
+  }
+
+  function setEntryBrand(b) {
+    if (currentEntry.brand === b) return;
+    currentEntry.brand = b;
+    // Clear model/trim/colour because they don't apply to the other brand
+    currentEntry.model = '';
+    currentEntry.trim = '';
+    currentEntry.colour = '';
+    refreshEntryBrandStyles();
+    renderModelGrid();
+    renderColourGrid();
+    renderTrims();
+    updateSaveState();
+  }
+
+  function renderModelGrid() {
+    const mg = document.getElementById('modelGrid');
+    const filtered = MODELS.filter(m => m.brand === currentEntry.brand);
+    mg.innerHTML = filtered.map(m => `
+      <button class="model-btn ${currentEntry.brand === 'suzuki' ? 'brand-suzu' : ''}" data-key="${m.key}" onclick="pickModel('${m.key}')">${m.name}</button>
+    `).join('');
+  }
+
+  function renderColourGrid() {
     const cg = document.getElementById('colourGrid');
-    cg.innerHTML = COLOURS.map((c, i) => `
-      <button class="colour-btn" data-i="${i}" onclick="pickColour(${i})">
+    const palette = COLOURS[currentEntry.brand] || COLOURS.mitsubishi;
+    cg.innerHTML = palette.map((c, i) => `
+      <button class="colour-btn ${currentEntry.brand === 'suzuki' ? 'brand-suzu' : ''}" data-i="${i}" onclick="pickColour(${i})">
         <div class="swatch" style="background:${c.hex}"></div>
         <div class="name">${c.name}</div>
       </button>
     `).join('');
+  }
 
-    // Trims (filtered)
-    const trims = availableTrims(dec);
-    const tg = document.getElementById('trimGrid');
-    tg.className = 'trims cols-' + Math.min(4, trims.length);
-    tg.innerHTML = trims.map(t => `
-      <button class="trim-btn" onclick="pickTrim('${t.replace(/'/g, "\\'")}')">${t}</button>
-    `).join('');
-
-    // Auto-select if only one trim possible (saves a tap)
-    if (trims.length === 1) pickTrim(trims[0]);
-
-    document.getElementById('keyInput').value = '';
-    document.getElementById('mfgInput').value = '';
+  function pickModel(key) {
+    currentEntry.model = key;
+    currentEntry.trim = '';
+    document.querySelectorAll('.model-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.key === key);
+    });
+    renderTrims();
     updateSaveState();
   }
 
+  function renderTrims() {
+    const tg = document.getElementById('trimGrid');
+    if (!currentEntry.model) {
+      tg.innerHTML = '<div style="padding:14px 4px;color:#888;font-size:13px;font-weight:600;">Pick a model first</div>';
+      tg.className = 'trims cols-1';
+      return;
+    }
+    const model = MODELS.find(m => m.key === currentEntry.model);
+    let trims = model.trims;
+    if (currentEntry.model === 'triton') {
+      const dec = decodeTritonVIN(currentEntry.vin);
+      const narrowed = availableTritonTrims(dec);
+      if (narrowed) trims = narrowed;
+    }
+    tg.className = 'trims cols-' + Math.min(5, trims.length);
+    const brandCls = currentEntry.brand === 'suzuki' ? 'brand-suzu' : '';
+    tg.innerHTML = trims.map(t => `
+      <button class="trim-btn ${brandCls}" onclick="pickTrim('${t.replace(/'/g, "\\'")}')">${t}</button>
+    `).join('');
+    // Auto-pick if only one option AND nothing already selected
+    if (trims.length === 1 && !currentEntry.trim) pickTrim(trims[0]);
+    // Re-mark selected if editing
+    if (currentEntry.trim) {
+      document.querySelectorAll('.trim-btn').forEach(b => {
+        b.classList.toggle('selected', b.textContent === currentEntry.trim);
+      });
+    }
+  }
+
   function pickColour(i) {
-    currentEntry.colour = COLOURS[i].name;
+    const palette = COLOURS[currentEntry.brand] || COLOURS.mitsubishi;
+    currentEntry.colour = palette[i].name;
     document.querySelectorAll('.colour-btn').forEach(b => b.classList.remove('selected'));
-    document.querySelector('.colour-btn[data-i="' + i + '"]').classList.add('selected');
+    const target = document.querySelector('.colour-btn[data-i="' + i + '"]');
+    if (target) target.classList.add('selected');
     updateSaveState();
   }
 
@@ -559,32 +1136,83 @@
     updateSaveState();
   }
 
+  function editVIN() {
+    // Tap the VIN pill to manually correct it
+    const newVin = prompt('Edit VIN (17 characters):', currentEntry.vin);
+    if (newVin == null) return;
+    const cleaned = newVin.trim().toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '');
+    if (cleaned.length !== 17) { alert('VIN must be exactly 17 valid characters.'); return; }
+    currentEntry.vin = cleaned;
+    document.getElementById('vinPill').textContent = cleaned;
+    // Re-guess model if not already set or if VIN now points elsewhere
+    const guess = guessModelFromVIN(cleaned);
+    if (guess) {
+      if (currentEntry.brand !== guess.brand) {
+        currentEntry.brand = guess.brand;
+        currentEntry.colour = '';
+        refreshEntryBrandStyles();
+        renderColourGrid();
+      }
+      pickModel(guess.modelKey);
+    }
+    // Refresh decoded header text
+    const tritonDec = decodeTritonVIN(cleaned);
+    const year = decodeYearFromVIN(cleaned);
+    let headerText;
+    if (tritonDec) {
+      headerText = `${year ? year + ' ' : ''}Triton · ${tritonDec.body} · ${tritonDec.drive} · ${tritonDec.trans}`;
+    } else if (guess) {
+      const m = MODELS.find(mm => mm.key === guess.modelKey);
+      headerText = `${year ? year + ' ' : ''}${m.name} (identified from VIN)`;
+    } else {
+      headerText = year ? `${year} — pick the model below` : 'Pick the model below';
+    }
+    document.getElementById('vinDecoded').textContent = headerText;
+  }
+
   function updateSaveState() {
-    document.getElementById('saveBtn').disabled = !(currentEntry.colour && currentEntry.trim);
+    document.getElementById('saveBtn').disabled =
+      !(currentEntry.model && currentEntry.colour && currentEntry.trim);
   }
 
   function cancelEntry() {
     document.getElementById('entry').style.display = 'none';
     document.getElementById('home').style.display = 'flex';
+    editingId = null;
     renderRecords();
   }
 
   async function saveEntry() {
     currentEntry.key = document.getElementById('keyInput').value.trim().toUpperCase();
     currentEntry.mfg = document.getElementById('mfgInput').value.trim().toUpperCase();
-    if (!currentEntry.colour || !currentEntry.trim) return;
+    if (!currentEntry.model || !currentEntry.colour || !currentEntry.trim) return;
 
     const records = loadRecords();
-    records.push({ ...currentEntry, t: Date.now() });
-    saveRecords(records);
-    savedThisSession++;
-
-    // Dismiss keyboard so camera screen isn't covered
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-
-    // Straight back to camera for next vehicle
-    const ok = await startScan();
-    if (ok) showToast('✓ Saved · ' + savedThisSession + ' this session');
+    if (editingId != null) {
+      // EDIT existing record — keep original t (timestamp/id)
+      const idx = records.findIndex(r => r.t === editingId);
+      if (idx >= 0) {
+        records[idx] = { ...currentEntry, t: editingId };
+      } else {
+        records.push({ ...currentEntry, t: Date.now() });
+      }
+      saveRecordsList(records);
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      editingId = null;
+      document.getElementById('entry').style.display = 'none';
+      document.getElementById('home').style.display = 'flex';
+      renderRecords();
+      // Light visual feedback
+      flashHomeToast('✓ Updated');
+    } else {
+      // NEW record
+      records.push({ ...currentEntry, t: Date.now() });
+      saveRecordsList(records);
+      savedThisSession++;
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      const ok = await startScan();
+      if (ok) showToast('✓ Saved · ' + savedThisSession + ' this session');
+    }
   }
 
   function showToast(text) {
@@ -594,20 +1222,39 @@
     setTimeout(() => t.classList.remove('show'), 1800);
   }
 
-  // ============================================================
-  // CSV export
-  // ============================================================
+  function flashHomeToast(text) {
+    // Create a temporary toast on home screen
+    const t = document.createElement('div');
+    t.className = 'toast show';
+    t.textContent = text;
+    t.style.position = 'fixed';
+    t.style.zIndex = '100';
+    document.body.appendChild(t);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 250); }, 1500);
+  }
+
+  /* ============================================================
+   * CSV EXPORT
+   * ============================================================ */
   function exportCSV() {
     const records = loadRecords();
     if (records.length === 0) { alert('No records to export yet.'); return; }
-    const cols = ['When','VIN','Trim','Colour','Body','Drive','Transmission','Key','Mfg ID'];
+    const cols = ['When','Brand','VIN','Year','Model','Trim','Colour','Body','Drive','Transmission','Key','Mfg ID'];
     let csv = cols.join(',') + '\n';
     records.forEach(r => {
-      const d = decodeFromVIN(r.vin) || {};
+      const model = MODELS.find(m => m.key === r.model);
+      const brand = r.brand || (model ? model.brand : '');
+      const dec = r.model === 'triton' ? decodeTritonVIN(r.vin) : null;
       const row = [
         new Date(r.t).toISOString(),
-        r.vin || '', r.trim || '', r.colour || '',
-        d.body || '', d.drive || '', d.trans || '',
+        brand,
+        r.vin || '',
+        decodeYearFromVIN(r.vin) || '',
+        model ? model.name : (r.model || ''),
+        r.trim || '', r.colour || '',
+        dec ? dec.body : '',
+        dec ? dec.drive : '',
+        dec ? dec.trans : '',
         r.key || '', r.mfg || '',
       ];
       csv += row.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\n';
@@ -616,17 +1263,15 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'triton_scans_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.download = 'vin_scans_' + new Date().toISOString().slice(0,10) + '.csv';
     document.body.appendChild(a);
-    a.click();
-    a.remove();
+    a.click(); a.remove();
     URL.revokeObjectURL(url);
   }
 
-  // ============================================================
-  // Wire up
-  // ============================================================
-  document.getElementById('fab').addEventListener('click', startScan);
+  /* ============================================================
+   * INIT
+   * ============================================================ */
   document.getElementById('keyInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('mfgInput').focus(); }
   });
@@ -637,6 +1282,8 @@
     }
   });
 
+  // Initialize brand toggle (default Mitsubishi)
+  setBrand('mitsubishi');
   renderRecords();
   </script>
 </body>
