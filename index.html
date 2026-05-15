@@ -497,7 +497,7 @@
       <div class="vin-pill" id="vinPill" onclick="editVIN()">—</div>
       <div class="vin-decoded" id="vinDecoded">—</div>
 
-      <!-- Stock # entered FIRST — most important field per dealer workflow -->
+      <!-- Stock # — biggest, top, scanned/typed first -->
       <div class="stock-row">
         <label for="stockInput">Stock #</label>
         <input id="stockInput" class="stock-input" type="text"
@@ -505,30 +505,128 @@
           enterkeyhint="next" placeholder="e.g. 3099563" />
       </div>
 
-      <div class="entry-brand-toggle" id="entryBrandToggle">
-        <button class="mits selected" data-b="mitsubishi" onclick="setEntryBrand('mitsubishi')">Mitsubishi</button>
-        <button class="suzu" data-b="suzuki" onclick="setEntryBrand('suzuki')">Suzuki</button>
+      <!-- Engine # — typed second, prefilled by model -->
+      <div class="field-row">
+        <label for="engineInput">Engine #</label>
+        <input id="engineInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
       </div>
 
-      <div class="section-label">Model</div>
-      <div class="models" id="modelGrid"></div>
+      <!-- Brand picker — hidden if VIN auto-decoded -->
+      <div id="brandPickerSection" style="display:none;">
+        <div class="section-label">Brand</div>
+        <div class="entry-brand-toggle" id="entryBrandToggle">
+          <button class="mits selected" data-b="mitsubishi" onclick="setEntryBrand('mitsubishi')">Mitsubishi</button>
+          <button class="suzu" data-b="suzuki" onclick="setEntryBrand('suzuki')">Suzuki</button>
+        </div>
+      </div>
 
-      <div class="section-label">Trim</div>
-      <div class="trims" id="trimGrid"></div>
+      <!-- Model picker — hidden if VIN auto-decoded -->
+      <div id="modelPickerSection" style="display:none;">
+        <div class="section-label">Model</div>
+        <div class="models" id="modelGrid"></div>
+      </div>
 
-      <div class="section-label">Colour</div>
-      <div class="colours" id="colourGrid"></div>
+      <!-- Trim picker (collapsible) -->
+      <div class="picker-section" id="trimSection">
+        <div class="picker-collapsed" id="trimCollapsed" style="display:none;" onclick="expandPicker('trim')">
+          <span class="picker-tick">✓</span>
+          <span class="picker-label">Trim</span>
+          <span class="picker-selected" id="trimSelectedText">—</span>
+          <span class="picker-change">Change</span>
+        </div>
+        <div class="picker-expanded" id="trimExpanded">
+          <div class="section-label">Trim</div>
+          <div class="trims" id="trimGrid"></div>
+        </div>
+      </div>
 
-      <div class="section-label">Other</div>
+      <!-- Colour picker (collapsible) -->
+      <div class="picker-section" id="colourSection">
+        <div class="picker-collapsed" id="colourCollapsed" style="display:none;" onclick="expandPicker('colour')">
+          <span class="picker-tick">✓</span>
+          <span class="picker-label">Colour</span>
+          <span class="picker-swatch-mini" id="colourSelectedSwatch"></span>
+          <span class="picker-selected" id="colourSelectedText">—</span>
+          <span class="picker-change">Change</span>
+        </div>
+        <div class="picker-expanded" id="colourExpanded">
+          <div class="section-label">Colour</div>
+          <div class="colours" id="colourGrid"></div>
+        </div>
+      </div>
+
+      <!-- Transmission picker — only shown if model has multiple options -->
+      <div class="picker-section" id="transSection" style="display:none;">
+        <div class="picker-collapsed" id="transCollapsed" style="display:none;" onclick="expandPicker('trans')">
+          <span class="picker-tick">✓</span>
+          <span class="picker-label">Transmission</span>
+          <span class="picker-selected" id="transSelectedText">—</span>
+          <span class="picker-change">Change</span>
+        </div>
+        <div class="picker-expanded" id="transExpanded">
+          <div class="section-label">Transmission</div>
+          <div class="trims" id="transGrid"></div>
+        </div>
+      </div>
+
+      <!-- In-car details -->
+      <div class="section-label">In-car</div>
+      <div class="field-row">
+        <label for="kmInput">Kms</label>
+        <input id="kmInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" placeholder="0" />
+      </div>
       <div class="field-row">
         <label for="keyInput">Key #</label>
         <input id="keyInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
       </div>
-      <div class="field-row">
-        <label for="engineInput">Engine</label>
-        <input id="engineInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="done" />
+      <div class="yesno-row">
+        <span class="yesno-label">2 Keys?</span>
+        <div class="yesno-buttons" data-field="twoKeys">
+          <button data-v="Yes" class="selected" onclick="setYesNo('twoKeys','Yes')">Yes</button>
+          <button data-v="No" onclick="setYesNo('twoKeys','No')">No</button>
+        </div>
       </div>
-      <div style="height: 80px"></div>
+      <div class="yesno-row">
+        <span class="yesno-label">Logbooks?</span>
+        <div class="yesno-buttons" data-field="logbooks">
+          <button data-v="Yes" class="selected" onclick="setYesNo('logbooks','Yes')">Yes</button>
+          <button data-v="No" onclick="setYesNo('logbooks','No')">No</button>
+        </div>
+      </div>
+
+      <!-- Damage — collapsible, default Nil -->
+      <div class="collapse-block" id="damageBlock">
+        <div class="collapse-header" onclick="toggleCollapse('damageBlock')">
+          <span class="collapse-arrow">▸</span>
+          <span class="collapse-title">Damage</span>
+          <span class="collapse-summary" id="damageSummary">Nil</span>
+        </div>
+        <div class="collapse-body">
+          <textarea id="damageInput" rows="2" placeholder="Nil"></textarea>
+        </div>
+      </div>
+
+      <!-- Build Date — collapsible, optional -->
+      <div class="collapse-block" id="buildDateBlock">
+        <div class="collapse-header" onclick="toggleCollapse('buildDateBlock')">
+          <span class="collapse-arrow">▸</span>
+          <span class="collapse-title">Build Date</span>
+          <span class="collapse-summary" id="buildDateSummary">—</span>
+        </div>
+        <div class="collapse-body">
+          <input id="buildDateInput" type="text" inputmode="numeric"
+            placeholder="MM/YY (e.g. 02/15 = Feb 2015)" maxlength="5" autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- Checked in by + Arrival date -->
+      <div class="field-row">
+        <label for="checkedInByInput">By</label>
+        <input id="checkedInByInput" type="text" autocomplete="off" enterkeyhint="done" />
+      </div>
+      <div class="arrival-info">Arrival: <span id="arrivalDateDisplay">—</span></div>
+
+      <div style="height: 100px"></div>
     </div>
   </div>
 
