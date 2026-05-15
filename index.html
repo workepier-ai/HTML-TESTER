@@ -53,7 +53,7 @@
       font-weight: 800; font-size: 14px;
     }
 
-    /* Brand toggle (segmented control) */
+    /* Brand toggle (segmented control) — used inside entry screen */
     .brand-bar {
       background: #f0f0f0; padding: 8px;
       border-bottom: 1px solid #d0d0d0;
@@ -68,6 +68,49 @@
     }
     .brand-btn.selected.mits { background: #000; color: #fff; border-color: #000; }
     .brand-btn.selected.suzu { background: #0d1f4a; color: #fff; border-color: #0d1f4a; }
+
+    /* Stock # — prominent at top of entry form */
+    .stock-row {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff;
+      border: 4px solid #000;
+      border-radius: 14px;
+      padding: 10px 16px;
+      margin: 8px 0 4px;
+    }
+    .stock-row label {
+      font-size: 14px; font-weight: 800;
+      color: #000; letter-spacing: 0.5px;
+      text-transform: uppercase; flex-shrink: 0;
+    }
+    .stock-input {
+      flex: 1; min-width: 0;
+      border: 0; outline: 0; background: transparent;
+      font-size: 28px; font-weight: 900;
+      color: #000;
+      font-family: "SF Mono", Menlo, monospace;
+      padding: 4px 0;
+      letter-spacing: 0.5px;
+    }
+    .stock-input::placeholder { color: #bbb; font-weight: 700; }
+    .stock-row.brand-suzu { border-color: #0d1f4a; }
+
+    /* Scan-screen mode toggle button (top-right) */
+    .scan-mode-toggle {
+      position: absolute;
+      top: calc(env(safe-area-inset-top) + 96px);
+      right: 14px;
+      padding: 10px 18px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: 2px solid rgba(255,255,255,0.7);
+      border-radius: 22px;
+      font-size: 14px; font-weight: 800;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      z-index: 4;
+    }
+    .scan-mode-toggle:active { transform: scale(0.94); }
 
     /* ============ HOME ============ */
     #home { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
@@ -412,14 +455,10 @@
 
   <!-- HOME -->
   <div id="home">
-    <div class="topbar brand-mits" id="homeTopbar">
+    <div class="topbar" id="homeTopbar">
       <div class="left"><button onclick="exportCSV()">Export</button></div>
-      <div class="title" id="homeTitle">Dealership Scanner</div>
+      <div class="title">Dealership Scanner</div>
       <div class="right"><span class="records-count" id="recCount">0</span></div>
-    </div>
-    <div class="brand-bar">
-      <button class="brand-btn mits selected" id="brandBtnMits" onclick="setBrand('mitsubishi')">Mitsubishi</button>
-      <button class="brand-btn suzu" id="brandBtnSuzu" onclick="setBrand('suzuki')">Suzuki</button>
     </div>
     <div class="records" id="records"></div>
     <div class="fab-stack">
@@ -434,8 +473,11 @@
     <canvas id="canvas"></canvas>
     <div class="scan-banner" id="banner">
       Scan VIN
-      <span class="sub" id="bannerSub">Aim at the QR code on the compliance label</span>
+      <span class="sub" id="bannerSub">Aim at the barcode under the VIN text</span>
     </div>
+    <button class="scan-mode-toggle" id="scanModeToggle" onclick="toggleScanMode()">
+      <span id="scanModeLabel">QR mode</span>
+    </button>
     <div class="viewfinder" id="viewfinder"><div></div></div>
     <div class="scan-bottom">
       <button onclick="cancelScan()">Cancel</button>
@@ -455,6 +497,14 @@
       <div class="vin-pill" id="vinPill" onclick="editVIN()">—</div>
       <div class="vin-decoded" id="vinDecoded">—</div>
 
+      <!-- Stock # entered FIRST — most important field per dealer workflow -->
+      <div class="stock-row">
+        <label for="stockInput">Stock #</label>
+        <input id="stockInput" class="stock-input" type="text"
+          autocapitalize="characters" autocomplete="off" spellcheck="false"
+          enterkeyhint="next" placeholder="e.g. 3099563" />
+      </div>
+
       <div class="entry-brand-toggle" id="entryBrandToggle">
         <button class="mits selected" data-b="mitsubishi" onclick="setEntryBrand('mitsubishi')">Mitsubishi</button>
         <button class="suzu" data-b="suzuki" onclick="setEntryBrand('suzuki')">Suzuki</button>
@@ -469,14 +519,10 @@
       <div class="section-label">Colour</div>
       <div class="colours" id="colourGrid"></div>
 
-      <div class="section-label">Details</div>
+      <div class="section-label">Other</div>
       <div class="field-row">
         <label for="keyInput">Key #</label>
         <input id="keyInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
-      </div>
-      <div class="field-row">
-        <label for="mfgInput">Mfg ID</label>
-        <input id="mfgInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
       </div>
       <div class="field-row">
         <label for="engineInput">Engine</label>
@@ -521,10 +567,10 @@
       brand: 'mitsubishi',
       key: 'triton',
       name: 'Triton',
-      trims: ['GLX', 'GLX+', 'GLX-R', 'GLS', 'GSR'],
+      trims: ['GLX', 'GLX+', 'GLX-R', 'GLX-R SE', 'GLS', 'GSR', 'GSR SE', 'Raider'],
       enginePrefix: '4N16 ',                            // 2.4L bi-turbo diesel (MR/MV)
       vinPrefixes: ['MMA'],
-      vinHint: 'VTA-062563',
+      vinHint: 'VTA-062563 — Raider launches May 2026; SE variants are GLX-R/GSR with accessory packs',
     },
     {
       brand: 'mitsubishi',
@@ -539,7 +585,7 @@
       brand: 'mitsubishi',
       key: 'outlander',
       name: 'Outlander',
-      trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed'],
+      trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed', 'Exceed Tourer'],
       enginePrefix: 'PR25 ',                            // 2.5L petrol (visible on your label)
       vinPrefixes: ['JMFXTGM4W'],
       vinHint: 'VTA-051624',
@@ -555,21 +601,12 @@
     },
     {
       brand: 'mitsubishi',
-      key: 'eclipse_cross',
-      name: 'Eclipse Cross',
-      trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed', 'GSR'],
-      enginePrefix: '4B40 ',                            // 1.5L turbo
-      vinPrefixes: ['JMFXTGK1W'],
-      vinHint: 'VTA-048510 (ICE)',
-    },
-    {
-      brand: 'mitsubishi',
       key: 'eclipse_cross_phev',
       name: 'Eclipse Cross PHEV',
       trims: ['Aspire', 'Exceed', 'GSR'],
       enginePrefix: '4B12 ',                            // shared with Outlander PHEV
       vinPrefixes: ['JMFXTGL3W'],
-      vinHint: 'VTA-048510 (PHEV variants)',
+      vinHint: 'VTA-048510 (PHEV — Eclipse Cross ICE discontinued in AU)',
     },
     {
       brand: 'mitsubishi',
@@ -587,7 +624,7 @@
       key: 'jimny',
       name: 'Jimny',
       trims: ['Lite', 'GLX'],
-      enginePrefix: 'K15B ',                            // 1.5L petrol (per RVD)
+      enginePrefix: 'K15B ',
       vinPrefixes: ['JSAGJB74V'],
       vinHint: 'VTA-049434 (3-door, Japan-built)',
     },
@@ -596,7 +633,7 @@
       key: 'jimny_xl',
       name: 'Jimny XL',
       trims: ['GLX'],
-      enginePrefix: 'K15B ',                            // same as 3-door
+      enginePrefix: 'K15B ',
       vinPrefixes: ['MA3JJC74W'],
       vinHint: 'VTA-061645 (5-door, India-built)',
     },
@@ -605,7 +642,7 @@
       key: 'fronx',
       name: 'Fronx',
       trims: ['GL', 'GLX'],
-      enginePrefix: 'K15C ',                            // 1.5L mild hybrid (per RVD)
+      enginePrefix: 'K15C ',
       vinPrefixes: ['MBHKWDB3S', 'MBHKW'],
       vinHint: 'VTA-064700 (India-built, mild hybrid)',
     },
@@ -613,8 +650,9 @@
       brand: 'suzuki',
       key: 'swift',
       name: 'Swift',
-      trims: ['GL', 'GLX'],
-      enginePrefix: 'Z12E ',                            // 1.2L 3-cyl mild hybrid (per RVD)
+      // AU lineup is Hybrid GL / Hybrid GL+ / Hybrid GLX
+      trims: ['GL', 'GL+', 'GLX'],
+      enginePrefix: 'Z12E ',
       vinPrefixes: ['JSAZCEDS'],
       vinHint: 'VTA-063358 (Japan-built, Z12E mild hybrid)',
     },
@@ -628,38 +666,53 @@
     suzuki: 'AN',
   };
 
-  /* Triton variant filtering — body+drive codes from VIN positions 4 and 7 */
+  /* Triton variant filtering — body+drive codes from VIN positions 4 and 7.
+   * Dual Cab 4x4 (JC) is where all the high-spec variants live including
+   * SE accessory packs and the upcoming Raider. The VIN doesn't distinguish
+   * between standard GLX-R and GLX-R SE — the dealer picks the right one. */
   const TRITON_TRIMS_BY_CONFIG = {
     'CC': ['GLX+'],
     'JB': ['GLX'],
-    'JC': ['GLX+', 'GLX-R', 'GLS', 'GSR'],
+    'JC': ['GLX+', 'GLX-R', 'GLX-R SE', 'GLS', 'GSR', 'GSR SE', 'Raider'],
     'WC': ['GLX'],
     'YB': ['GLX'],
     'YC': ['GLX'],
     'ZC': ['GLX', 'GLS', 'GSR'],
   };
 
-  /* Colour palettes per brand. Edit freely. */
+  /* Colour palettes per brand — current AU lineup colours.
+   * Mitsubishi: covers Triton, Pajero Sport, Outlander/PHEV, Eclipse Cross PHEV, ASX.
+   * Suzuki: covers Jimny, Jimny XL, Fronx, Swift.
+   * Per-model exact names vary slightly (e.g. "Red Diamond" vs "Solid Red") —
+   * pick the closest match for the colour on the car. */
   const COLOURS = {
     mitsubishi: [
-      { name: 'Diamond White',   hex: '#F2F2F0' },
-      { name: 'Sterling Silver', hex: '#B7B9BC' },
-      { name: 'Titanium Grey',   hex: '#5E636B' },
+      { name: 'White Diamond',   hex: '#F4F4F2' },    // prestige (most premium models)
+      { name: 'White (Solid)',   hex: '#FAFAFA' },    // base white (Triton GLX)
+      { name: 'Sterling Silver', hex: '#B7B9BC' },    // Outlander / Eclipse / ASX
+      { name: 'Blade Silver',    hex: '#9DA0A4' },    // Triton / Pajero Sport
       { name: 'Graphite Grey',   hex: '#3D4046' },
-      { name: 'Black Diamond',   hex: '#14171C' },
-      { name: 'Sapphire Blue',   hex: '#2E4F73' },
-      { name: 'Red Diamond',     hex: '#9C1B22' },
-      { name: 'Yamabuki Orange', hex: '#D87231' },
+      { name: 'Black Diamond',   hex: '#14171C' },    // Outlander / Eclipse / ASX
+      { name: 'Black Mica',      hex: '#0F1115' },    // Triton / Pajero Sport
+      { name: 'Red Diamond',     hex: '#9C1B22' },    // SUVs
+      { name: 'Solid Red',       hex: '#C2272E' },    // Triton
+      { name: 'Cosmic Blue',     hex: '#1B3A6E' },    // Outlander (newer)
+      { name: 'Impulse Blue',    hex: '#1E2F66' },    // Triton
+      { name: 'Yamabuki Orange', hex: '#D87231' },    // Triton GSR signature
     ],
     suzuki: [
-      { name: 'Pearl White',     hex: '#F2F2F0' },
-      { name: 'Silky Silver',    hex: '#C7C8CA' },
-      { name: 'Granite Grey',    hex: '#6F727A' },
-      { name: 'Bluish Black',    hex: '#16181C' },
-      { name: 'Speedy Blue',     hex: '#1C5BA0' },
-      { name: 'Brisk Blue',      hex: '#2C7DD9' },
-      { name: 'Burning Red',     hex: '#B5232A' },
-      { name: 'Kinetic Yellow',  hex: '#F5C518' },
+      { name: 'Arctic White Pearl', hex: '#F4F4F2' },
+      { name: 'Pure White Pearl',   hex: '#FAFAFA' },  // Swift base
+      { name: 'Silky/Splendid Silver', hex: '#C7C8CA' },
+      { name: 'Granite Grey',       hex: '#6F727A' },  // Fronx / Jimny XL
+      { name: 'Medium Grey',        hex: '#7B7E84' },  // Jimny 3-door
+      { name: 'Bluish Black',       hex: '#16181C' },
+      { name: 'Brisk/Speedy Blue',  hex: '#1C5BA0' },
+      { name: 'Frontier Blue',      hex: '#3A6FB8' },  // Swift two-tone
+      { name: 'Burning/Sizzling Red', hex: '#B5232A' },
+      { name: 'Kinetic Yellow',     hex: '#F5C518' },  // Jimny signature
+      { name: 'Jungle Green',       hex: '#3D5A3A' },  // Jimny
+      { name: 'Chiffon Ivory',      hex: '#E8DFC8' },  // Jimny
     ],
   };
 
@@ -733,23 +786,40 @@
   }
   function saveRecordsList(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
 
-  let currentBrand = 'mitsubishi';   // home-screen scan mode default
+  let currentBrand = 'mitsubishi';   // kept for backward-compat with editVIN; reflects entry-screen brand
   let savedThisSession = 0;
   let editingId = null;              // if set, we're editing an existing record by `t`
 
   /* ============================================================
-   * HOME SCREEN
+   * HOME SCREEN + SCAN MODE
+   *
+   * scanMode controls only the viewfinder SHAPE on the scan screen.
+   * The decoder always reads QR + Code 39 + Code 128 regardless of mode.
+   * defaultBrand is just the fallback when a manually-entered VIN can't
+   * be auto-identified — remembered between sessions via localStorage.
    * ============================================================ */
-  function setBrand(b) {
-    currentBrand = b;
-    document.getElementById('brandBtnMits').classList.toggle('selected', b === 'mitsubishi');
-    document.getElementById('brandBtnSuzu').classList.toggle('selected', b === 'suzuki');
-    const tb = document.getElementById('homeTopbar');
-    tb.classList.toggle('brand-mits', b === 'mitsubishi');
-    tb.classList.toggle('brand-suzu', b === 'suzuki');
-    document.getElementById('homeTitle').textContent =
-      b === 'mitsubishi' ? 'Mitsubishi' : 'Suzuki';
-    document.getElementById('fab').classList.toggle('brand-suzu', b === 'suzuki');
+  let scanMode = localStorage.getItem('scan_mode_v1') || 'barcode'; // 'barcode' | 'qr'
+  let defaultBrand = localStorage.getItem('default_brand_v1') || 'mitsubishi';
+
+  function toggleScanMode() {
+    scanMode = (scanMode === 'qr') ? 'barcode' : 'qr';
+    localStorage.setItem('scan_mode_v1', scanMode);
+    applyScanModeUI();
+  }
+
+  function applyScanModeUI() {
+    const label = document.getElementById('scanModeLabel');
+    const vf = document.getElementById('viewfinder');
+    const sub = document.getElementById('bannerSub');
+    if (scanMode === 'qr') {
+      label.textContent = 'Barcode mode';
+      vf.classList.add('qr');
+      if (sub) sub.textContent = 'Aim at the QR code on the compliance label';
+    } else {
+      label.textContent = 'QR mode';
+      vf.classList.remove('qr');
+      if (sub) sub.textContent = 'Aim at the barcode under the VIN text';
+    }
   }
 
   function renderRecords() {
@@ -783,8 +853,8 @@
           </div>
           <div class="body-line">${bodyLine}</div>
           <div class="meta">
+            <span>Stk <b>${r.mfg || '—'}</b></span>
             <span>Key <b>${r.key || '—'}</b></span>
-            <span>Mfg <b>${r.mfg || '—'}</b></span>
             <span>Eng <b>${r.engine || '—'}</b></span>
           </div>
           <div class="vin">VIN: ${r.vin}</div>
@@ -843,15 +913,9 @@
     document.getElementById('scan').style.display = 'block';
 
     const banner = document.getElementById('banner');
-    const vf = document.getElementById('viewfinder');
     banner.classList.remove('success');
-    if (currentBrand === 'suzuki') {
-      banner.innerHTML = 'Scan VIN <span class="sub">Aim at the barcode under the VIN text</span>';
-      vf.classList.remove('qr');
-    } else {
-      banner.innerHTML = 'Scan VIN <span class="sub">Aim at the QR or barcode on the compliance label</span>';
-      vf.classList.add('qr');
-    }
+    banner.innerHTML = 'Scan VIN <span class="sub" id="bannerSub"></span>';
+    applyScanModeUI();
     lastNonVinDetection = 0;
 
     try {
@@ -887,7 +951,7 @@
     // Crop to centre region matching the viewfinder for speed + accuracy.
     // QR mode: square crop; barcode mode: wide rect crop.
     const vw = video.videoWidth, vh = video.videoHeight;
-    const isQR = currentBrand !== 'suzuki';
+    const isQR = scanMode === 'qr';
     let cropW, cropH;
     if (isQR) {
       const side = Math.floor(Math.min(vw, vh) * 0.85);
@@ -1035,8 +1099,9 @@
       key:    existing ? existing.key    : '',
       mfg:    existing ? existing.mfg    : '',
       engine: existing ? (existing.engine || '') : '',
-      brand:  existing ? (existing.brand || 'mitsubishi') : currentBrand,
+      brand:  existing ? (existing.brand || 'mitsubishi') : defaultBrand,
     };
+    currentBrand = currentEntry.brand;   // keep in sync
 
     document.getElementById('scan').style.display = 'none';
     document.getElementById('home').style.display = 'none';
@@ -1075,13 +1140,13 @@
     renderTrims();
 
     document.getElementById('keyInput').value = currentEntry.key || '';
-    // For NEW entries, prefill Mfg ID and Engine from brand/model defaults.
+    // For NEW entries, prefill Stock # and Engine from brand/model defaults.
     // For EDIT, keep what was saved.
     if (existing) {
-      document.getElementById('mfgInput').value = currentEntry.mfg || '';
+      document.getElementById('stockInput').value = currentEntry.mfg || '';
       document.getElementById('engineInput').value = currentEntry.engine || '';
     } else {
-      document.getElementById('mfgInput').value = MFG_PREFIX[currentEntry.brand] || '';
+      document.getElementById('stockInput').value = MFG_PREFIX[currentEntry.brand] || '';
       const modelObj = MODELS.find(m => m.key === currentEntry.model);
       document.getElementById('engineInput').value = (modelObj && modelObj.enginePrefix) || '';
     }
@@ -1113,6 +1178,9 @@
     tb.classList.toggle('brand-mits', b === 'mitsubishi');
     tb.classList.toggle('brand-suzu', b === 'suzuki');
     document.getElementById('vinPill').classList.toggle('brand-suzu', b === 'suzuki');
+    // Apply brand colour to the stock row's border too
+    const stockRow = document.querySelector('.stock-row');
+    if (stockRow) stockRow.classList.toggle('brand-suzu', b === 'suzuki');
     document.querySelectorAll('#entryBrandToggle button').forEach(btn => {
       btn.classList.toggle('selected', btn.dataset.b === b);
     });
@@ -1122,14 +1190,16 @@
     if (currentEntry.brand === b) return;
     const oldPrefix = MFG_PREFIX[currentEntry.brand] || '';
     currentEntry.brand = b;
+    defaultBrand = b;
+    localStorage.setItem('default_brand_v1', b);
     // Clear model/trim/colour because they don't apply to the other brand
     currentEntry.model = '';
     currentEntry.trim = '';
     currentEntry.colour = '';
-    // Refresh Mfg prefill if user hasn't typed anything custom
-    const mfgInput = document.getElementById('mfgInput');
-    if (mfgInput.value === '' || mfgInput.value === oldPrefix) {
-      mfgInput.value = MFG_PREFIX[b] || '';
+    // Refresh Stock # prefill if user hasn't typed anything custom
+    const stockInput = document.getElementById('stockInput');
+    if (stockInput.value === '' || stockInput.value === oldPrefix) {
+      stockInput.value = MFG_PREFIX[b] || '';
     }
     // Clear engine field since the prefix won't match the new brand
     const engineInput = document.getElementById('engineInput');
@@ -1278,7 +1348,7 @@
 
   async function saveEntry() {
     currentEntry.key    = document.getElementById('keyInput').value.trim().toUpperCase();
-    currentEntry.mfg    = document.getElementById('mfgInput').value.trim().toUpperCase();
+    currentEntry.mfg    = document.getElementById('stockInput').value.trim().toUpperCase();  // stored as 'mfg' for backward compat
     currentEntry.engine = document.getElementById('engineInput').value.trim().toUpperCase();
     if (!currentEntry.model || !currentEntry.colour || !currentEntry.trim) return;
 
@@ -1334,7 +1404,7 @@
   function exportCSV() {
     const records = loadRecords();
     if (records.length === 0) { alert('No records to export yet.'); return; }
-    const cols = ['When','Brand','VIN','Year','Model','Trim','Colour','Body','Drive','Transmission','Key','Mfg ID','Engine'];
+    const cols = ['When','Brand','Stock #','VIN','Year','Model','Trim','Colour','Body','Drive','Transmission','Key','Engine'];
     let csv = cols.join(',') + '\n';
     records.forEach(r => {
       const model = MODELS.find(m => m.key === r.model);
@@ -1343,6 +1413,7 @@
       const row = [
         new Date(r.t).toISOString(),
         brand,
+        r.mfg || '',                       // Stock # (stored as 'mfg' for backward compat)
         r.vin || '',
         decodeYearFromVIN(r.vin) || '',
         model ? model.name : (r.model || ''),
@@ -1350,7 +1421,7 @@
         dec ? dec.body : '',
         dec ? dec.drive : '',
         dec ? dec.trans : '',
-        r.key || '', r.mfg || '', r.engine || '',
+        r.key || '', r.engine || '',
       ];
       csv += row.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\n';
     });
@@ -1367,10 +1438,10 @@
   /* ============================================================
    * INIT
    * ============================================================ */
-  document.getElementById('keyInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('mfgInput').focus(); }
+  document.getElementById('stockInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('keyInput').focus(); }
   });
-  document.getElementById('mfgInput').addEventListener('keydown', e => {
+  document.getElementById('keyInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('engineInput').focus(); }
   });
   document.getElementById('engineInput').addEventListener('keydown', e => {
@@ -1380,8 +1451,8 @@
     }
   });
 
-  // Initialize brand toggle (default Mitsubishi)
-  setBrand('mitsubishi');
+  // Initialize
+  applyScanModeUI();      // safe to call before camera opens (sets defaults)
   renderRecords();
   </script>
 </body>
