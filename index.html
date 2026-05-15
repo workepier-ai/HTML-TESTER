@@ -476,7 +476,11 @@
       </div>
       <div class="field-row">
         <label for="mfgInput">Mfg ID</label>
-        <input id="mfgInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="done" />
+        <input id="mfgInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
+      </div>
+      <div class="field-row">
+        <label for="engineInput">Engine</label>
+        <input id="engineInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="done" />
       </div>
       <div style="height: 80px"></div>
     </div>
@@ -518,8 +522,8 @@
       key: 'triton',
       name: 'Triton',
       trims: ['GLX', 'GLX+', 'GLX-R', 'GLS', 'GSR'],
-      // Triton VIN handled by special decoder (body+drive vary in VIN)
-      vinPrefixes: ['MMA'], // need decoder check too
+      enginePrefix: '4N16 ',                            // 2.4L bi-turbo diesel (MR/MV)
+      vinPrefixes: ['MMA'],
       vinHint: 'VTA-062563',
     },
     {
@@ -527,6 +531,7 @@
       key: 'pajero_sport',
       name: 'Pajero Sport',
       trims: ['GLX', 'GLS', 'Exceed', 'GSR'],
+      enginePrefix: '4N15 ',                            // 2.4L diesel (QF)
       vinPrefixes: ['MMAGUKS10', 'MK2GUKS10'],
       vinHint: 'VTA-047316',
     },
@@ -535,6 +540,7 @@
       key: 'outlander',
       name: 'Outlander',
       trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed'],
+      enginePrefix: 'PR25 ',                            // 2.5L petrol (visible on your label)
       vinPrefixes: ['JMFXTGM4W'],
       vinHint: 'VTA-051624',
     },
@@ -542,9 +548,8 @@
       brand: 'mitsubishi',
       key: 'outlander_phev',
       name: 'Outlander PHEV',
-      // MY25+ has 4 trims (ES, Aspire, Exceed, GSR per RVD marketing string).
-      // Exceed Tourer kept in list for MY24 stock still in service.
       trims: ['ES', 'Aspire', 'Exceed', 'Exceed Tourer', 'GSR'],
+      enginePrefix: '4B12 ',                            // 2.4L petrol + electric (per RVD)
       vinPrefixes: ['JMFXDGN0W'],
       vinHint: 'VTA-060069 (GN, PHEV — note "D" at pos 5)',
     },
@@ -553,6 +558,7 @@
       key: 'eclipse_cross',
       name: 'Eclipse Cross',
       trims: ['ES', 'LS', 'Black Ed', 'Aspire', 'Exceed', 'GSR'],
+      enginePrefix: '4B40 ',                            // 1.5L turbo
       vinPrefixes: ['JMFXTGK1W'],
       vinHint: 'VTA-048510 (ICE)',
     },
@@ -561,6 +567,7 @@
       key: 'eclipse_cross_phev',
       name: 'Eclipse Cross PHEV',
       trims: ['Aspire', 'Exceed', 'GSR'],
+      enginePrefix: '4B12 ',                            // shared with Outlander PHEV
       vinPrefixes: ['JMFXTGL3W'],
       vinHint: 'VTA-048510 (PHEV variants)',
     },
@@ -569,6 +576,7 @@
       key: 'asx',
       name: 'ASX',
       trims: ['LS', 'Aspire', 'Exceed'],
+      enginePrefix: 'HR13 ',                            // 1.3L turbo (Renault-built)
       vinPrefixes: ['VF1KJB'],
       vinHint: 'VTA-064848 (Renault-built France)',
     },
@@ -579,6 +587,7 @@
       key: 'jimny',
       name: 'Jimny',
       trims: ['Lite', 'GLX'],
+      enginePrefix: 'K15B ',                            // 1.5L petrol (per RVD)
       vinPrefixes: ['JSAGJB74V'],
       vinHint: 'VTA-049434 (3-door, Japan-built)',
     },
@@ -587,6 +596,7 @@
       key: 'jimny_xl',
       name: 'Jimny XL',
       trims: ['GLX'],
+      enginePrefix: 'K15B ',                            // same as 3-door
       vinPrefixes: ['MA3JJC74W'],
       vinHint: 'VTA-061645 (5-door, India-built)',
     },
@@ -595,6 +605,7 @@
       key: 'fronx',
       name: 'Fronx',
       trims: ['GL', 'GLX'],
+      enginePrefix: 'K15C ',                            // 1.5L mild hybrid (per RVD)
       vinPrefixes: ['MBHKWDB3S', 'MBHKW'],
       vinHint: 'VTA-064700 (India-built, mild hybrid)',
     },
@@ -602,12 +613,20 @@
       brand: 'suzuki',
       key: 'swift',
       name: 'Swift',
-      // Current 4th gen Swift (UZ / ZC83S) — Z12E mild hybrid 1.2L
       trims: ['GL', 'GLX'],
+      enginePrefix: 'Z12E ',                            // 1.2L 3-cyl mild hybrid (per RVD)
       vinPrefixes: ['JSAZCEDS'],
       vinHint: 'VTA-063358 (Japan-built, Z12E mild hybrid)',
     },
   ];
+
+  /* Mfg ID prefix per brand — applied when starting a new entry.
+   * Mitsubishi labels use 7-digit body/batch numbers (no letter prefix).
+   * Suzuki labels via PrixCar use 2-letter + 8-digit format (e.g. AN41503992). */
+  const MFG_PREFIX = {
+    mitsubishi: '',
+    suzuki: 'AN',
+  };
 
   /* Triton variant filtering — body+drive codes from VIN positions 4 and 7 */
   const TRITON_TRIMS_BY_CONFIG = {
@@ -766,6 +785,7 @@
           <div class="meta">
             <span>Key <b>${r.key || '—'}</b></span>
             <span>Mfg <b>${r.mfg || '—'}</b></span>
+            <span>Eng <b>${r.engine || '—'}</b></span>
           </div>
           <div class="vin">VIN: ${r.vin}</div>
         </div>`;
@@ -784,21 +804,25 @@
   }
 
   /* ============================================================
-   * SCAN — ZXing for both QR (Mitsubishi) and Code 128 (Suzuki)
+   * SCAN — ZXing for both QR (Mitsubishi) and Code 39/128 (Suzuki)
+   *
+   * KEY FIX: use decodeWithState() not decode() — decode() internally
+   * calls setHints(undefined) which wipes our TRY_HARDER + format
+   * priorities every frame, killing barcode detection.
    * ============================================================ */
   let videoStream = null;
-  let scanRAF = null;
+  let scanTimeout = null;
   let zxingReader = null;
   let scanning = false;
+  let lastNonVinDetection = 0;
 
   function buildZxingReader() {
     if (zxingReader) return zxingReader;
     const hints = new Map();
-    // Allow both QR and the common 1D barcodes used by Suzuki/Mitsubishi compliance labels
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.CODE_39,        // Mitsi & Suzuki VIN labels (note: asterisks in `*VIN*` are Code 39 start/stop)
       ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
       ZXing.BarcodeFormat.DATA_MATRIX,
     ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
@@ -807,27 +831,36 @@
     return zxingReader;
   }
 
+  function resetScanReader() {
+    // Force the reader to be rebuilt next scan (clears any internal state)
+    zxingReader = null;
+  }
+
   async function startScan() {
+    resetScanReader();   // ensure fresh hints on every camera open
     document.getElementById('home').style.display = 'none';
     document.getElementById('entry').style.display = 'none';
     document.getElementById('scan').style.display = 'block';
 
-    // Banner text reflects current brand mode hint
     const banner = document.getElementById('banner');
-    const sub = document.getElementById('bannerSub');
     const vf = document.getElementById('viewfinder');
     banner.classList.remove('success');
     if (currentBrand === 'suzuki') {
-      banner.innerHTML = 'Scan VIN <span class="sub" id="bannerSub">Aim at the 1D barcode on the compliance label</span>';
+      banner.innerHTML = 'Scan VIN <span class="sub">Aim at the barcode under the VIN text</span>';
       vf.classList.remove('qr');
     } else {
-      banner.innerHTML = 'Scan VIN <span class="sub" id="bannerSub">Aim at the QR code on the compliance label</span>';
+      banner.innerHTML = 'Scan VIN <span class="sub">Aim at the QR or barcode on the compliance label</span>';
       vf.classList.add('qr');
     }
+    lastNonVinDetection = 0;
 
     try {
       videoStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+        video: {
+          facingMode: 'environment',
+          width:  { ideal: 1920 },
+          height: { ideal: 1080 },
+        }
       });
       const video = document.getElementById('video');
       video.srcObject = videoStream;
@@ -846,33 +879,61 @@
     if (!scanning) return;
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      try {
-        const reader = buildZxingReader();
-        const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-        const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-        const result = reader.decode(binaryBitmap);
-        if (result && result.getText) {
-          const raw = result.getText();
-          const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-          // VIN: 17 chars, allowed characters: A-Z digits except I O Q
-          const match = cleaned.match(/[A-HJ-NPR-Z0-9]{17}/);
-          if (match) {
-            handleScannedVIN(match[0]);
-            return;
-          }
-        }
-      } catch (e) {
-        // NotFoundException is expected when no code in frame — keep looping silently
-      } finally {
-        try { /* reset between frames */ if (zxingReader && zxingReader.reset) zxingReader.reset(); } catch (e) {}
-      }
+    if (video.readyState !== video.HAVE_ENOUGH_DATA || video.videoWidth === 0) {
+      scanTimeout = setTimeout(scanLoop, 100);
+      return;
     }
-    scanRAF = requestAnimationFrame(scanLoop);
+
+    // Crop to centre region matching the viewfinder for speed + accuracy.
+    // QR mode: square crop; barcode mode: wide rect crop.
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const isQR = currentBrand !== 'suzuki';
+    let cropW, cropH;
+    if (isQR) {
+      const side = Math.floor(Math.min(vw, vh) * 0.85);
+      cropW = side; cropH = side;
+    } else {
+      cropW = Math.floor(vw * 0.92);
+      cropH = Math.floor(vh * 0.45);
+    }
+    canvas.width = cropW;
+    canvas.height = cropH;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sx = Math.floor((vw - cropW) / 2);
+    const sy = Math.floor((vh - cropH) / 2);
+    ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+
+    let raw = null;
+    try {
+      const reader = buildZxingReader();
+      const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+      const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+      const result = reader.decodeWithState(binaryBitmap);   // uses cached hints
+      if (result && result.getText) raw = result.getText();
+    } catch (e) {
+      // NotFoundException is expected — keep looping
+    }
+
+    if (raw) handleScanResult(raw);
+    else scanTimeout = setTimeout(scanLoop, 150);            // ~6-7 fps target
+  }
+
+  function handleScanResult(raw) {
+    const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const match = cleaned.match(/[A-HJ-NPR-Z0-9]{17}/);
+    if (match) {
+      handleScannedVIN(match[0]);
+      return;
+    }
+    // Got a result but not a VIN — show it briefly so user knows scanner IS working
+    const now = Date.now();
+    if (now - lastNonVinDetection > 1500) {
+      lastNonVinDetection = now;
+      const banner = document.getElementById('banner');
+      const trimmed = raw.length > 30 ? raw.substring(0, 30) + '…' : raw;
+      banner.innerHTML = 'Read: <span style="font-family:monospace;font-size:13px">' + trimmed + '</span><span class="sub">Not a 17-char VIN — try again or type it</span>';
+    }
+    scanTimeout = setTimeout(scanLoop, 150);
   }
 
   function handleScannedVIN(vin) {
@@ -890,7 +951,7 @@
   function stopCamera() {
     scanning = false;
     if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
-    if (scanRAF) cancelAnimationFrame(scanRAF);
+    if (scanTimeout) { clearTimeout(scanTimeout); scanTimeout = null; }
   }
 
   function cancelScan() {
@@ -948,7 +1009,7 @@
   /* ============================================================
    * ENTRY SCREEN
    * ============================================================ */
-  let currentEntry = { vin: '', model: '', colour: '', trim: '', key: '', mfg: '', brand: 'mitsubishi' };
+  let currentEntry = { vin: '', model: '', colour: '', trim: '', key: '', mfg: '', engine: '', brand: 'mitsubishi' };
 
   function openEntry(vin) {
     editingId = null;
@@ -973,6 +1034,7 @@
       trim:   existing ? existing.trim   : '',
       key:    existing ? existing.key    : '',
       mfg:    existing ? existing.mfg    : '',
+      engine: existing ? (existing.engine || '') : '',
       brand:  existing ? (existing.brand || 'mitsubishi') : currentBrand,
     };
 
@@ -1013,7 +1075,16 @@
     renderTrims();
 
     document.getElementById('keyInput').value = currentEntry.key || '';
-    document.getElementById('mfgInput').value = currentEntry.mfg || '';
+    // For NEW entries, prefill Mfg ID and Engine from brand/model defaults.
+    // For EDIT, keep what was saved.
+    if (existing) {
+      document.getElementById('mfgInput').value = currentEntry.mfg || '';
+      document.getElementById('engineInput').value = currentEntry.engine || '';
+    } else {
+      document.getElementById('mfgInput').value = MFG_PREFIX[currentEntry.brand] || '';
+      const modelObj = MODELS.find(m => m.key === currentEntry.model);
+      document.getElementById('engineInput').value = (modelObj && modelObj.enginePrefix) || '';
+    }
 
     if (currentEntry.model) {
       const btn = document.querySelector(`.model-btn[data-key="${currentEntry.model}"]`);
@@ -1049,11 +1120,23 @@
 
   function setEntryBrand(b) {
     if (currentEntry.brand === b) return;
+    const oldPrefix = MFG_PREFIX[currentEntry.brand] || '';
     currentEntry.brand = b;
     // Clear model/trim/colour because they don't apply to the other brand
     currentEntry.model = '';
     currentEntry.trim = '';
     currentEntry.colour = '';
+    // Refresh Mfg prefill if user hasn't typed anything custom
+    const mfgInput = document.getElementById('mfgInput');
+    if (mfgInput.value === '' || mfgInput.value === oldPrefix) {
+      mfgInput.value = MFG_PREFIX[b] || '';
+    }
+    // Clear engine field since the prefix won't match the new brand
+    const engineInput = document.getElementById('engineInput');
+    if (engineInput.value !== '' && !engineInput.value.includes(' ') ||
+        engineInput.value.length < 10) {
+      engineInput.value = '';
+    }
     refreshEntryBrandStyles();
     renderModelGrid();
     renderColourGrid();
@@ -1081,11 +1164,22 @@
   }
 
   function pickModel(key) {
+    const prevModel = MODELS.find(m => m.key === currentEntry.model);
+    const newModel = MODELS.find(m => m.key === key);
     currentEntry.model = key;
     currentEntry.trim = '';
     document.querySelectorAll('.model-btn').forEach(b => {
       b.classList.toggle('selected', b.dataset.key === key);
     });
+    // Refresh the engine prefill — but only if the user hasn't typed past the previous prefix
+    if (newModel && newModel.enginePrefix) {
+      const engineInput = document.getElementById('engineInput');
+      const cur = engineInput.value;
+      const prevPrefix = (prevModel && prevModel.enginePrefix) || '';
+      if (cur === '' || cur === prevPrefix || cur === prevPrefix.trim()) {
+        engineInput.value = newModel.enginePrefix;
+      }
+    }
     renderTrims();
     updateSaveState();
   }
@@ -1183,8 +1277,9 @@
   }
 
   async function saveEntry() {
-    currentEntry.key = document.getElementById('keyInput').value.trim().toUpperCase();
-    currentEntry.mfg = document.getElementById('mfgInput').value.trim().toUpperCase();
+    currentEntry.key    = document.getElementById('keyInput').value.trim().toUpperCase();
+    currentEntry.mfg    = document.getElementById('mfgInput').value.trim().toUpperCase();
+    currentEntry.engine = document.getElementById('engineInput').value.trim().toUpperCase();
     if (!currentEntry.model || !currentEntry.colour || !currentEntry.trim) return;
 
     const records = loadRecords();
@@ -1239,7 +1334,7 @@
   function exportCSV() {
     const records = loadRecords();
     if (records.length === 0) { alert('No records to export yet.'); return; }
-    const cols = ['When','Brand','VIN','Year','Model','Trim','Colour','Body','Drive','Transmission','Key','Mfg ID'];
+    const cols = ['When','Brand','VIN','Year','Model','Trim','Colour','Body','Drive','Transmission','Key','Mfg ID','Engine'];
     let csv = cols.join(',') + '\n';
     records.forEach(r => {
       const model = MODELS.find(m => m.key === r.model);
@@ -1255,7 +1350,7 @@
         dec ? dec.body : '',
         dec ? dec.drive : '',
         dec ? dec.trans : '',
-        r.key || '', r.mfg || '',
+        r.key || '', r.mfg || '', r.engine || '',
       ];
       csv += row.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\n';
     });
@@ -1276,6 +1371,9 @@
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('mfgInput').focus(); }
   });
   document.getElementById('mfgInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('engineInput').focus(); }
+  });
+  document.getElementById('engineInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!document.getElementById('saveBtn').disabled) saveEntry();
