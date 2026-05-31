@@ -152,6 +152,50 @@
     .sharp-fill { height: 100%; width: 0%; background: #e0524d; transition: width 0.08s linear, background 0.15s linear; }
     .debug-hud .hud-log { margin-top: 6px; color: #c2c2c2; font-size: 10px; line-height: 1.45; max-height: 80px; overflow: hidden; }
 
+    .debug-export {
+      position: absolute;
+      top: calc(env(safe-area-inset-top) + 196px);
+      right: 14px;
+      padding: 8px 14px;
+      background: rgba(190,40,40,0.9);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.75);
+      border-radius: 18px;
+      font-size: 12px; font-weight: 800;
+      cursor: pointer; letter-spacing: 0.3px;
+      z-index: 5;
+    }
+    .debug-export:active { transform: scale(0.94); }
+
+    .debug-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.93);
+      z-index: 50; display: none; flex-direction: column;
+      padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px);
+      gap: 10px;
+    }
+    .debug-modal.show { display: flex; }
+    .debug-modal h3 { color: #fff; font-size: 15px; font-weight: 800; }
+    .debug-modal img {
+      width: 100%; max-height: 30vh; object-fit: contain;
+      background: #000; border: 1px solid #444; border-radius: 8px;
+    }
+    .debug-modal textarea {
+      flex: 1; width: 100%;
+      background: #0c0c0c; color: #7CFC9B;
+      font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11px;
+      border: 1px solid #444; border-radius: 8px; padding: 10px;
+      white-space: pre; overflow: auto; -webkit-user-select: text; user-select: text;
+    }
+    .debug-modal .dm-row { display: flex; gap: 10px; }
+    .debug-modal .dm-row button {
+      flex: 1; padding: 14px; border-radius: 10px; border: none;
+      font-size: 15px; font-weight: 800; cursor: pointer;
+    }
+    .debug-modal .dm-copy { background: #3ddc84; color: #000; }
+    .debug-modal .dm-dl   { background: #2a6df0; color: #fff; }
+    .debug-modal .dm-close{ background: #333; color: #fff; }
+
     /* ============ HOME ============ */
     #home { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
     .records {
@@ -615,12 +659,23 @@
       <div class="hud-read" id="hudLastRead">— waiting —</div>
       <div class="hud-log" id="hudLog"></div>
     </div>
+    <button class="debug-export" id="debugExportBtn" onclick="runDebugExport()">⤓ DUMP</button>
     <div class="viewfinder" id="viewfinder"><div></div></div>
     <div class="scan-bottom">
       <button onclick="cancelScan()">Cancel</button>
       <button class="primary" onclick="openManualEntry()">⌨ Type VIN</button>
     </div>
     <div class="toast" id="scanToast"></div>
+    <div class="debug-modal" id="debugModal">
+      <h3>Scanner debug export</h3>
+      <img id="debugFrame" alt="captured frame">
+      <textarea id="debugReport" readonly spellcheck="false"></textarea>
+      <div class="dm-row">
+        <button class="dm-copy" onclick="copyDebugReport()">Copy text</button>
+        <button class="dm-dl" onclick="downloadDebugFrame()">Save image</button>
+        <button class="dm-close" onclick="closeDebugModal()">Close</button>
+      </div>
+    </div>
   </div>
 
   <!-- ENTRY -->
@@ -1139,6 +1194,7 @@
   let hudSharp = -1, hudRoiStr = '';
   let hudLastReadText = '', hudLastFormat = '';
   let hudLogLines = [];
+  let debugFrameURL = '';                        // last captured frame (debug export)
 
   function buildZxingReader() {
     if (zxingReader) return zxingReader;
@@ -1358,7 +1414,9 @@
   function applyDebugHudUI() {
     const hud = document.getElementById('debugHud');
     const btn = document.getElementById('debugToggle');
+    const exp = document.getElementById('debugExportBtn');
     if (hud) hud.style.display = debugHudOn ? 'block' : 'none';
+    if (exp) exp.style.display = debugHudOn ? 'block' : 'none';   // DUMP rides with the HUD
     if (btn) {
       btn.textContent = debugHudOn ? 'DBG ✓' : 'DBG';
       btn.classList.toggle('off', !debugHudOn);
@@ -1408,11 +1466,16 @@
       map[BF.QR_CODE] = 'QR_CODE';
       map[BF.CODE_128] = 'CODE_128';
       map[BF.CODE_39] = 'CODE_39';
-      map[BF.DATA_MATRIX] = 'DATA_MATRIX';
       map[BF.CODE_93] = 'CODE_93';
-      map[BF.AZTEC] = 'AZTEC';
+      map[BF.DATA_MATRIX] = 'DATA_MATRIX';
       map[BF.PDF_417] = 'PDF_417';
+      map[BF.AZTEC] = 'AZTEC';
+      map[BF.ITF] = 'ITF';
+      map[BF.CODABAR] = 'CODABAR';
       map[BF.EAN_13] = 'EAN_13';
+      map[BF.EAN_8] = 'EAN_8';
+      map[BF.UPC_A] = 'UPC_A';
+      map[BF.UPC_E] = 'UPC_E';
       return map[fmt] || ('fmt#' + fmt);
     } catch (e) { return 'fmt#' + fmt; }
   }
@@ -1438,6 +1501,164 @@
     }
     if (!n) return 0;
     return Math.max(0, Math.min(100, Math.round((sum / n) * 2.2)));
+  }
+
+  /* ===================== Full debug export =====================
+   * Freezes the current frame and runs a one-shot "kitchen-sink" decode —
+   * every plausible symbology, both binarizers, plus upscaled/tighter crops —
+   * so we can see whether ANY config reads the label. Produces a copy-paste
+   * text report + the captured image. This is what tells us if ZXing-JS can
+   * read the Suzuki Code 128 at all (tune) or simply can't (swap to zbar). */
+  const FMT_1D = () => [
+    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.CODE_93,  ZXing.BarcodeFormat.ITF,
+    ZXing.BarcodeFormat.CODABAR,
+  ];
+  const FMT_ALL = () => FMT_1D().concat([
+    ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX,
+    ZXing.BarcodeFormat.PDF_417, ZXing.BarcodeFormat.AZTEC,
+  ]);
+
+  // Crop a centre region (wFrac×hFrac) of src and optionally scale it (nearest
+  // neighbour, so barcode edges stay hard). Returns a new canvas.
+  function cropCanvas(src, wFrac, hFrac, scale) {
+    const cw = Math.max(1, Math.floor(src.width * wFrac));
+    const ch = Math.max(1, Math.floor(src.height * hFrac));
+    const sx = Math.floor((src.width - cw) / 2), sy = Math.floor((src.height - ch) / 2);
+    const out = document.createElement('canvas');
+    out.width = Math.floor(cw * scale); out.height = Math.floor(ch * scale);
+    const octx = out.getContext('2d', { willReadFrequently: true });
+    octx.imageSmoothingEnabled = false;
+    octx.drawImage(src, sx, sy, cw, ch, 0, 0, out.width, out.height);
+    return out;
+  }
+
+  function debugDecodeAll(canvas, label, formats, lines) {
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    const reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+    const bins = [['Hybrid', ZXing.HybridBinarizer], ['Global', ZXing.GlobalHistogramBinarizer]];
+    for (const [bn, Bin] of bins) {
+      let out;
+      try {
+        const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const bb = new ZXing.BinaryBitmap(new Bin(lum));
+        const res = reader.decodeWithState(bb);
+        out = (res && res.getText)
+          ? ('[' + formatName(res.getBarcodeFormat()) + '] ' + res.getText())
+          : 'NotFound';
+      } catch (e) { out = (e && e.name) ? e.name : 'NotFound'; }
+      lines.push('  ' + label + ' / ' + bn + ' => ' + out);
+      if (reader.reset) reader.reset();
+    }
+  }
+
+  function runDebugExport() {
+    const video = document.getElementById('video');
+    const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
+
+    // Freeze the current frame at native resolution.
+    const cap = document.createElement('canvas');
+    cap.width = vw || 640; cap.height = vh || 480;
+    const cctx = cap.getContext('2d', { willReadFrequently: true });
+    if (vw) cctx.drawImage(video, 0, 0, vw, vh);
+    debugFrameURL = cap.toDataURL('image/jpeg', 0.75);
+
+    document.getElementById('debugFrame').src = debugFrameURL;
+    document.getElementById('debugReport').value =
+      'Running all-format decode on the frame, one moment ⏳';
+    document.getElementById('debugModal').classList.add('show');
+
+    // Defer the heavy decoding so the modal + image paint first.
+    setTimeout(() => {
+      let settings = {}, caps = {};
+      try {
+        const track = videoStream && videoStream.getVideoTracks()[0];
+        if (track) {
+          settings = track.getSettings ? track.getSettings() : {};
+          caps = track.getCapabilities ? track.getCapabilities() : {};
+        }
+      } catch (e) {}
+
+      const L = [];
+      L.push('VIN SCANNER DEBUG REPORT');
+      L.push('time: ' + new Date().toISOString());
+      L.push('ua: ' + navigator.userAgent);
+      L.push('platform: ' + (navigator.platform || '?') +
+             '  dpr: ' + (window.devicePixelRatio || 1) +
+             '  win: ' + window.innerWidth + 'x' + window.innerHeight);
+      L.push('scanMode: ' + scanMode + '  ZXing: ' + (window.ZXing ? 'loaded' : 'MISSING'));
+      L.push('');
+      L.push('--- video element ---');
+      L.push('native videoW x videoH: ' + vw + ' x ' + vh + '   readyState: ' + video.readyState);
+      L.push('display size (CSS px): ' + video.clientWidth + ' x ' + video.clientHeight);
+      L.push('');
+      L.push('--- track.getSettings() (actual camera stream) ---');
+      L.push(safeJson(settings));
+      L.push('');
+      L.push('--- track.getCapabilities() (zoom/torch/focus support) ---');
+      L.push(safeJson(caps));
+      L.push('');
+      L.push('--- this scan session ---');
+      L.push('attempts: ' + hudAttempts + '   live decodes: ' + hudDecodes +
+             '   VINs: ' + hudVins + '   attempts/s: ' + hudFrameTimes.length +
+             '   lastSharpness: ' + Math.round(hudSharp < 0 ? 0 : hudSharp));
+      L.push('');
+      L.push('--- recent live reads (last ' + hudLogLines.length + ') ---');
+      if (hudLogLines.length) hudLogLines.forEach(l => L.push('  ' + l));
+      else L.push('  (none — the live loop decoded nothing)');
+      L.push('');
+      L.push('--- KITCHEN-SINK decode of the frozen frame (TRY_HARDER) ---');
+      L.push('captured frame: ' + cap.width + ' x ' + cap.height);
+      debugDecodeAll(cap, 'full-ALL', FMT_ALL(), L);
+      const band = cropCanvas(cap, 0.95, 0.60, 1);
+      debugDecodeAll(band, 'band-1D ' + band.width + 'x' + band.height, FMT_1D(), L);
+      const band2 = cropCanvas(cap, 0.95, 0.60, 2);
+      debugDecodeAll(band2, 'band2x-1D ' + band2.width + 'x' + band2.height, FMT_1D(), L);
+      const tight = cropCanvas(cap, 0.6, 0.35, 2);
+      debugDecodeAll(tight, 'tight2x-ALL ' + tight.width + 'x' + tight.height, FMT_ALL(), L);
+      L.push('=== END ===');
+
+      document.getElementById('debugReport').value = L.join('\n');
+    }, 40);
+  }
+
+  function safeJson(obj) {
+    try { return JSON.stringify(obj); } catch (e) { return '(unserialisable: ' + e + ')'; }
+  }
+
+  function copyDebugReport() {
+    const ta = document.getElementById('debugReport');
+    ta.focus(); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(flashCopied, () => {
+        if (!ok) alert('Select the text and copy it manually.');
+      });
+    } else if (ok) { flashCopied(); }
+    else { alert('Select the text and copy it manually.'); }
+  }
+
+  function flashCopied() {
+    const b = document.querySelector('.dm-copy');
+    if (!b) return;
+    const t = b.textContent; b.textContent = 'Copied ✓';
+    setTimeout(() => { b.textContent = t; }, 1200);
+  }
+
+  function downloadDebugFrame() {
+    if (!debugFrameURL) return;
+    const a = document.createElement('a');
+    a.href = debugFrameURL;
+    a.download = 'vin-debug-' + Date.now() + '.jpg';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function closeDebugModal() {
+    document.getElementById('debugModal').classList.remove('show');
   }
 
   function handleScannedVIN(vin) {
