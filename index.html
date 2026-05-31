@@ -112,6 +112,46 @@
     }
     .scan-mode-toggle:active { transform: scale(0.94); }
 
+    /* ===== Diagnostics HUD (troubleshooting overlay) ===== */
+    .debug-toggle {
+      position: absolute;
+      top: calc(env(safe-area-inset-top) + 150px);
+      right: 14px;
+      padding: 8px 14px;
+      background: rgba(0,0,0,0.7);
+      color: #7CFC9B;
+      border: 2px solid rgba(124,252,155,0.7);
+      border-radius: 18px;
+      font-size: 12px; font-weight: 800;
+      cursor: pointer; letter-spacing: 0.3px;
+      z-index: 5;
+    }
+    .debug-toggle:active { transform: scale(0.94); }
+    .debug-toggle.off { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.4); }
+
+    .debug-hud {
+      position: absolute;
+      top: calc(env(safe-area-inset-top) + 96px);
+      left: 14px;
+      width: 215px; max-width: 62vw;
+      padding: 10px 12px;
+      background: rgba(0,0,0,0.8);
+      border: 1px solid rgba(124,252,155,0.45);
+      border-radius: 12px;
+      color: #e8e8e8;
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-size: 11px; line-height: 1.5; letter-spacing: 0.2px;
+      z-index: 4; pointer-events: none;
+    }
+    .debug-hud .hud-row { display: flex; justify-content: space-between; gap: 8px; }
+    .debug-hud .hud-k { color: #8f8f8f; }
+    .debug-hud .hud-v { color: #fff; font-weight: 700; text-align: right; word-break: break-all; }
+    .debug-hud .hud-read { color: #7CFC9B; word-break: break-all; }
+    .debug-hud .hud-sep { height: 1px; background: rgba(255,255,255,0.15); margin: 6px 0; }
+    .sharp-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.18); overflow: hidden; margin-top: 3px; }
+    .sharp-fill { height: 100%; width: 0%; background: #e0524d; transition: width 0.08s linear, background 0.15s linear; }
+    .debug-hud .hud-log { margin-top: 6px; color: #c2c2c2; font-size: 10px; line-height: 1.45; max-height: 80px; overflow: hidden; }
+
     /* ============ HOME ============ */
     #home { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
     .records {
@@ -561,6 +601,20 @@
     <button class="scan-mode-toggle" id="scanModeToggle" onclick="toggleScanMode()">
       <span id="scanModeLabel">QR mode</span>
     </button>
+    <button class="debug-toggle" id="debugToggle" onclick="toggleDebugHud()">DBG</button>
+    <div class="debug-hud" id="debugHud">
+      <div class="hud-row"><span class="hud-k">attempts/s</span><span class="hud-v" id="hudFps">0</span></div>
+      <div class="hud-row"><span class="hud-k">sharpness</span><span class="hud-v" id="hudSharpVal">0</span></div>
+      <div class="sharp-bar"><div class="sharp-fill" id="hudSharpBar"></div></div>
+      <div class="hud-sep"></div>
+      <div class="hud-row"><span class="hud-k">format</span><span class="hud-v" id="hudFormat">—</span></div>
+      <div class="hud-row"><span class="hud-k">roi</span><span class="hud-v" id="hudRoi">—</span></div>
+      <div class="hud-row"><span class="hud-k">try / ok / vin</span><span class="hud-v" id="hudCounts">0 / 0 / 0</span></div>
+      <div class="hud-sep"></div>
+      <div class="hud-k">last read</div>
+      <div class="hud-read" id="hudLastRead">— waiting —</div>
+      <div class="hud-log" id="hudLog"></div>
+    </div>
     <div class="viewfinder" id="viewfinder"><div></div></div>
     <div class="scan-bottom">
       <button onclick="cancelScan()">Cancel</button>
@@ -985,6 +1039,7 @@
   function toggleScanMode() {
     scanMode = (scanMode === 'qr') ? 'barcode' : 'qr';
     localStorage.setItem('scan_mode_v1', scanMode);
+    resetScanReader();   // rebuild reader so format priority matches the new mode
     applyScanModeUI();
   }
 
@@ -1077,15 +1132,29 @@
   let lastNonVinDetection = 0;
   let scanFrameCounter = 0;
 
+  // ---- Diagnostics HUD state ----
+  let debugHudOn = localStorage.getItem('debug_hud_v1') !== '0'; // default ON
+  let hudFrameTimes = [];                       // perf timestamps -> attempts/sec
+  let hudAttempts = 0, hudDecodes = 0, hudVins = 0;
+  let hudSharp = -1, hudRoiStr = '';
+  let hudLastReadText = '', hudLastFormat = '';
+  let hudLogLines = [];
+
   function buildZxingReader() {
     if (zxingReader) return zxingReader;
+    // Hint only the symbologies the dealer's labels actually use. DATA_MATRIX
+    // is unused and one of the most expensive passes, so drop it — that alone
+    // frees up attempts/sec for dense Code 128. We lead with the format each
+    // mode expects but keep all three so neither brand can stop scanning.
+    const formats = (scanMode === 'qr')
+      ? [ZXing.BarcodeFormat.QR_CODE,
+         ZXing.BarcodeFormat.CODE_128,
+         ZXing.BarcodeFormat.CODE_39]
+      : [ZXing.BarcodeFormat.CODE_128,    // Suzuki VIN labels (dense — needs sharp focus)
+         ZXing.BarcodeFormat.CODE_39,     // Mitsubishi VIN barcode
+         ZXing.BarcodeFormat.QR_CODE];    // Mitsubishi compliance QR
     const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.CODE_39,        // Mitsubishi VIN labels
-      ZXing.BarcodeFormat.CODE_128,       // Suzuki VIN labels (denser — needs sharp focus)
-      ZXing.BarcodeFormat.DATA_MATRIX,
-    ]);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
     zxingReader = new ZXing.MultiFormatReader();
     zxingReader.setHints(hints);
@@ -1100,13 +1169,22 @@
    * live frame sometimes decodes under one but not the other. */
   function decodeCanvas(canvas) {
     const reader = buildZxingReader();
-    const binarizers = [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer];
-    for (const Bin of binarizers) {
+    const binarizers = [
+      ['Hybrid', ZXing.HybridBinarizer],
+      ['Global', ZXing.GlobalHistogramBinarizer],
+    ];
+    for (const [binName, Bin] of binarizers) {
       try {
         const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
         const bb = new ZXing.BinaryBitmap(new Bin(lum));
         const result = reader.decodeWithState(bb);
-        if (result && result.getText) return result.getText();
+        if (result && result.getText) {
+          return {
+            text: result.getText(),
+            format: formatName(result.getBarcodeFormat ? result.getBarcodeFormat() : null),
+            binarizer: binName,
+          };
+        }
       } catch (e) { /* NotFound — try next binarizer */ }
     }
     return null;
@@ -1115,6 +1193,7 @@
   async function startScan() {
     resetScanReader();
     scanFrameCounter = 0;
+    resetHudStats();
     document.getElementById('home').style.display = 'none';
     document.getElementById('entry').style.display = 'none';
     document.getElementById('scan').style.display = 'block';
@@ -1212,18 +1291,39 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
 
-    const raw = decodeCanvas(canvas);
-    if (raw) handleScanResult(raw);
+    // ---- diagnostics: attempts/sec, sharpness, ROI (only when HUD is on) ----
+    hudAttempts++;
+    const nowTs = performance.now();
+    hudFrameTimes.push(nowTs);
+    while (hudFrameTimes.length && nowTs - hudFrameTimes[0] > 1000) hudFrameTimes.shift();
+    if (debugHudOn) {
+      hudSharp = computeSharpness(ctx, cropW, cropH);
+      hudRoiStr = (isQR ? 'qr' : (scanFrameCounter % 2 === 0 ? 'band' : 'full'))
+                  + ' ' + cropW + '×' + cropH;
+    }
+
+    const hit = decodeCanvas(canvas);
+    if (hit) {
+      hudDecodes++;
+      hudLastReadText = hit.text;
+      hudLastFormat = hit.format + ' · ' + hit.binarizer;
+    }
+    if (debugHudOn) updateDebugHud();
+
+    if (hit) handleScanResult(hit.text, hit);
     else scanTimeout = setTimeout(scanLoop, 120);
   }
 
-  function handleScanResult(raw) {
+  function handleScanResult(raw, meta) {
     const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const match = cleaned.match(/[A-HJ-NPR-Z0-9]{17}/);
     if (match) {
+      hudVins++;
+      pushHudLog('VIN ✓ ' + match[0], meta);
       handleScannedVIN(match[0]);
       return;
     }
+    pushHudLog('not-VIN: ' + raw, meta);
     // Got a result but not a VIN — show it briefly so user knows scanner IS working
     const now = Date.now();
     if (now - lastNonVinDetection > 1500) {
@@ -1233,6 +1333,111 @@
       banner.innerHTML = 'Read: <span style="font-family:monospace;font-size:13px">' + trimmed + '</span><span class="sub">Not a 17-char VIN — try again or type it</span>';
     }
     scanTimeout = setTimeout(scanLoop, 150);
+  }
+
+  /* ===================== Diagnostics HUD =====================
+   * A toggleable overlay that shows what the scanner is actually doing each
+   * frame — attempts/sec, image sharpness (the #1 factor for dense Code 128),
+   * the last decoded text + symbology + binarizer, and a rolling read log.
+   * Default ON so the operator can troubleshoot a label and report numbers
+   * back; flip it off (DBG button) for normal day-to-day use. */
+  function resetHudStats() {
+    hudAttempts = 0; hudDecodes = 0; hudVins = 0;
+    hudFrameTimes = []; hudLogLines = [];
+    hudLastReadText = ''; hudLastFormat = ''; hudSharp = -1; hudRoiStr = '';
+    if (debugHudOn) updateDebugHud();
+  }
+
+  function toggleDebugHud() {
+    debugHudOn = !debugHudOn;
+    localStorage.setItem('debug_hud_v1', debugHudOn ? '1' : '0');
+    applyDebugHudUI();
+    if (debugHudOn) updateDebugHud();
+  }
+
+  function applyDebugHudUI() {
+    const hud = document.getElementById('debugHud');
+    const btn = document.getElementById('debugToggle');
+    if (hud) hud.style.display = debugHudOn ? 'block' : 'none';
+    if (btn) {
+      btn.textContent = debugHudOn ? 'DBG ✓' : 'DBG';
+      btn.classList.toggle('off', !debugHudOn);
+    }
+  }
+
+  function setHudText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+
+  function updateDebugHud() {
+    if (!document.getElementById('debugHud')) return;
+    setHudText('hudFps', hudFrameTimes.length);             // passes in the last ~1s
+    const s = Math.round(hudSharp < 0 ? 0 : hudSharp);
+    setHudText('hudSharpVal', s + (s >= 60 ? '  Sharp' : s >= 35 ? '  OK' : '  Soft'));
+    const bar = document.getElementById('hudSharpBar');
+    if (bar) {
+      bar.style.width = s + '%';
+      bar.style.background = s >= 60 ? '#3ddc84' : s >= 35 ? '#f5b301' : '#e0524d';
+    }
+    setHudText('hudFormat', hudLastFormat || '—');
+    setHudText('hudRoi', hudRoiStr || '—');
+    setHudText('hudCounts', hudAttempts + ' / ' + hudDecodes + ' / ' + hudVins);
+    setHudText('hudLastRead', hudLastReadText || '— waiting —');
+    const log = document.getElementById('hudLog');
+    if (log) log.innerHTML = hudLogLines.map(escapeHtml).join('<br>');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function pushHudLog(text, meta) {
+    const t = new Date();
+    const ts = String(t.getHours()).padStart(2, '0') + ':' +
+               String(t.getMinutes()).padStart(2, '0') + ':' +
+               String(t.getSeconds()).padStart(2, '0');
+    const fmt = (meta && meta.format) ? (' [' + meta.format + ']') : '';
+    hudLogLines.unshift(ts + fmt + ' ' + text);
+    if (hudLogLines.length > 5) hudLogLines.length = 5;
+    if (debugHudOn) updateDebugHud();
+  }
+
+  // Map a ZXing BarcodeFormat enum value to a readable name.
+  function formatName(fmt) {
+    if (fmt == null) return '—';
+    try {
+      const BF = ZXing.BarcodeFormat, map = {};
+      map[BF.QR_CODE] = 'QR_CODE';
+      map[BF.CODE_128] = 'CODE_128';
+      map[BF.CODE_39] = 'CODE_39';
+      map[BF.DATA_MATRIX] = 'DATA_MATRIX';
+      map[BF.CODE_93] = 'CODE_93';
+      map[BF.AZTEC] = 'AZTEC';
+      map[BF.PDF_417] = 'PDF_417';
+      map[BF.EAN_13] = 'EAN_13';
+      return map[fmt] || ('fmt#' + fmt);
+    } catch (e) { return 'fmt#' + fmt; }
+  }
+
+  // Cheap focus proxy: average gradient magnitude over a centre region.
+  // Higher = crisper edges = more likely a dense Code 128 will decode.
+  function computeSharpness(ctx, w, h) {
+    const rw = Math.min(w, 360), rh = Math.min(h, 240);
+    const ox = Math.floor((w - rw) / 2), oy = Math.floor((h - rh) / 2);
+    let data;
+    try { data = ctx.getImageData(ox, oy, rw, rh).data; }
+    catch (e) { return 0; }
+    const rowBytes = rw * 4, stride = 2;
+    let sum = 0, n = 0;
+    for (let y = 0; y < rh - stride; y += stride) {
+      for (let x = 0; x < rw - stride; x += stride) {
+        const i = y * rowBytes + x * 4 + 1;          // green channel ≈ luminance
+        const dx = data[i] - data[i + stride * 4];
+        const dy = data[i] - data[i + stride * rowBytes];
+        sum += Math.abs(dx) + Math.abs(dy);
+        n++;
+      }
+    }
+    if (!n) return 0;
+    return Math.max(0, Math.min(100, Math.round((sum / n) * 2.2)));
   }
 
   function handleScannedVIN(vin) {
@@ -1881,6 +2086,7 @@
 
   // Initialize
   applyScanModeUI();
+  applyDebugHudUI();
   renderRecords();
   </script>
 </body>
