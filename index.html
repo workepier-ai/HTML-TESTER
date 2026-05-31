@@ -146,7 +146,7 @@
     .debug-hud .hud-row { display: flex; justify-content: space-between; gap: 8px; }
     .debug-hud .hud-k { color: #8f8f8f; }
     .debug-hud .hud-v { color: #fff; font-weight: 700; text-align: right; word-break: break-all; }
-    .debug-hud .hud-read { color: #7CFC9B; word-break: break-all; }
+    .debug-hud .hud-read { color: #7CFC9B; word-break: break-all; max-height: 70px; overflow: hidden; }
     .debug-hud .hud-sep { height: 1px; background: rgba(255,255,255,0.15); margin: 6px 0; }
     .sharp-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.18); overflow: hidden; margin-top: 3px; }
     .sharp-fill { height: 100%; width: 0%; background: #e0524d; transition: width 0.08s linear, background 0.15s linear; }
@@ -1261,11 +1261,16 @@
     lastNonVinDetection = 0;
 
     try {
+      // Ask for the highest resolution iOS will give us. The Suzuki Code 128
+      // is dense — each module is only ~2-3 px at 1080p, far below what
+      // ZXing-JS reliably decodes. The dump showed this camera can do up to
+      // 4032x3024; bump the ideals so iOS picks a higher mode if it can.
       videoStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width:  { ideal: 1920 },
-          height: { ideal: 1080 },
+          width:  { ideal: 3840, max: 4032 },
+          height: { ideal: 2160, max: 3024 },
+          frameRate: { ideal: 30, max: 30 },
         }
       });
       const video = document.getElementById('video');
@@ -1361,7 +1366,7 @@
     const hit = decodeCanvas(canvas);
     if (hit) {
       hudDecodes++;
-      hudLastReadText = hit.text;
+      hudLastReadText = escapeForDebug(hit.text);   // shows length + non-printables
       hudLastFormat = hit.format + ' · ' + hit.binarizer;
     }
     if (debugHudOn) updateDebugHud();
@@ -1379,16 +1384,45 @@
       handleScannedVIN(match[0]);
       return;
     }
-    pushHudLog('not-VIN: ' + raw, meta);
-    // Got a result but not a VIN — show it briefly so user knows scanner IS working
+    // Not a VIN — surface the actual bytes so we can see WHY (Suzuki labels
+    // often use GS1 with FNC1/<GS> separators that render as nothing).
+    const escaped = escapeForDebug(raw);
+    pushHudLog('not-VIN ' + escaped, meta);
     const now = Date.now();
     if (now - lastNonVinDetection > 1500) {
       lastNonVinDetection = now;
       const banner = document.getElementById('banner');
-      const trimmed = raw.length > 30 ? raw.substring(0, 30) + '…' : raw;
-      banner.innerHTML = 'Read: <span style="font-family:monospace;font-size:13px">' + trimmed + '</span><span class="sub">Not a 17-char VIN — try again or type it</span>';
+      banner.innerHTML =
+        'Read <span style="font-family:monospace;font-size:13px;word-break:break-all">' +
+        escapeHtml(escaped.length > 80 ? escaped.slice(0, 80) + '…' : escaped) +
+        '</span><span class="sub">Not a 17-char VIN — try again, type it, or tap DUMP</span>';
     }
     scanTimeout = setTimeout(scanLoop, 150);
+  }
+
+  /* Make a debug-friendly version of a decoded string: tags the byte length
+   * and visibly escapes whitespace + non-printables. Critical for Suzuki
+   * GS1 labels where the payload is wrapped in <GS>/FNC1 (char 29) and the
+   * raw value rendered straight would just look "empty". */
+  function escapeForDebug(raw) {
+    if (raw == null) return '«null»';
+    const len = raw.length;
+    if (len === 0) return '«0 bytes — empty»';
+    let out = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw.charCodeAt(i);
+      if      (c === 9)   out += '⇥';
+      else if (c === 10)  out += '⏎';
+      else if (c === 13)  out += '↵';
+      else if (c === 29)  out += '⟨GS⟩';   // group separator (FNC1) — common on GS1
+      else if (c === 30)  out += '⟨RS⟩';
+      else if (c === 31)  out += '⟨US⟩';
+      else if (c < 32)    out += '⟨' + c.toString(16).padStart(2,'0') + '⟩';
+      else if (c === 127) out += '⟨7f⟩';
+      else if (c > 126)   out += '⟨' + c.toString(16).padStart(2,'0') + '⟩';
+      else                out += raw[i];
+    }
+    return '«' + len + 'B» ' + out;
   }
 
   /* ===================== Diagnostics HUD =====================
