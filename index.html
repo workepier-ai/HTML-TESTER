@@ -449,6 +449,89 @@
     }
     .entry-brand-toggle button.selected.mits { background: #000; color: #fff; }
     .entry-brand-toggle button.selected.suzu { background: #0d1f4a; color: #fff; }
+
+    /* Collapsible picker (Trim / Colour / Transmission) */
+    .picker-section { margin-bottom: 2px; }
+    .picker-collapsed {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff; border: 3px solid #000;
+      border-radius: 12px; padding: 12px 14px;
+      margin: 6px 0; cursor: pointer;
+    }
+    .picker-collapsed .picker-tick {
+      color: #00a050; font-weight: 900; font-size: 18px;
+    }
+    .picker-collapsed .picker-label {
+      font-size: 11px; font-weight: 800; letter-spacing: 1px;
+      text-transform: uppercase; color: #888;
+    }
+    .picker-collapsed .picker-selected {
+      flex: 1; font-size: 18px; font-weight: 800; color: #000;
+    }
+    .picker-collapsed .picker-change {
+      font-size: 13px; font-weight: 700; color: #1c6fd0;
+    }
+    .picker-collapsed .picker-swatch-mini {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0;
+    }
+
+    /* Yes/No toggle rows */
+    .yesno-row {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 3px solid #ccc;
+      border-radius: 12px; padding: 8px 14px; margin-bottom: 6px;
+    }
+    .yesno-label {
+      font-size: 13px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #000; flex: 1;
+    }
+    .yesno-buttons { display: flex; gap: 6px; }
+    .yesno-buttons button {
+      padding: 9px 22px; border-radius: 9px;
+      border: 2px solid #ccc; background: #f5f5f5;
+      font-size: 15px; font-weight: 800; color: #666; cursor: pointer;
+    }
+    .yesno-buttons button.selected {
+      background: #00a050; border-color: #00a050; color: #fff;
+    }
+    .yesno-buttons button[data-v="No"].selected {
+      background: #c8102e; border-color: #c8102e;
+    }
+
+    /* Collapse blocks (Damage, Build Date) — collapsed by default */
+    .collapse-block {
+      background: #fff; border: 3px solid #ccc;
+      border-radius: 12px; margin-bottom: 6px; overflow: hidden;
+    }
+    .collapse-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; cursor: pointer;
+    }
+    .collapse-arrow {
+      font-size: 14px; color: #888; transition: transform 0.15s;
+    }
+    .collapse-block.open .collapse-arrow { transform: rotate(90deg); }
+    .collapse-title {
+      font-size: 13px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #000;
+    }
+    .collapse-summary {
+      flex: 1; text-align: right; font-size: 15px; font-weight: 700; color: #555;
+    }
+    .collapse-body { display: none; padding: 0 14px 12px; }
+    .collapse-block.open .collapse-body { display: block; }
+    .collapse-body textarea, .collapse-body input {
+      width: 100%; border: 2px solid #ccc; border-radius: 8px;
+      padding: 10px; font-size: 16px; font-family: inherit;
+      outline: 0; resize: vertical;
+    }
+    .collapse-body textarea:focus, .collapse-body input:focus { border-color: #000; }
+
+    .arrival-info {
+      text-align: center; font-size: 13px; color: #777;
+      font-weight: 600; margin: 10px 0 4px;
+    }
   </style>
 </head>
 <body>
@@ -937,9 +1020,18 @@
       const year = decodeYearFromVIN(r.vin);
       const palette = COLOURS[brand] || COLOURS.mitsubishi;
       const colour = palette.find(c => c.name === r.colour) || { hex: '#ccc' };
-      const bodyLine = tritonDec
-        ? `${year ? year + ' · ' : ''}${tritonDec.body} · ${tritonDec.drive} · ${tritonDec.trans}`
-        : (year ? year + ' · ' + modelName : modelName);
+      // Combined name: "Triton GLX+ 4x4"
+      const drive = r.drive || (tritonDec ? tritonDec.drive : '');
+      const trans = r.transmission || (tritonDec ? tritonDec.trans : '');
+      let combined = modelName;
+      if (r.trim) combined += ' ' + r.trim;
+      if (drive) combined += ' ' + drive;
+      const bodyBits = [];
+      if (year) bodyBits.push(year);
+      if (trans) bodyBits.push(trans);
+      if (r.km) bodyBits.push(r.km + ' km');
+      if (tritonDec) bodyBits.push(tritonDec.body);
+      const damageFlag = (r.damage && r.damage !== 'Nil') ? ' ⚠' : '';
       return `
         <div class="record" onclick="openEditEntry(${r.t})">
           <button class="del" onclick="event.stopPropagation(); deleteRecord(${r.t})">✕</button>
@@ -947,11 +1039,11 @@
           <div class="top-line">
             <div class="swatch" style="background:${colour.hex}"></div>
             <span class="brand-tag ${brand === 'suzuki' ? 'suzu' : 'mits'}">${brandLabel}</span>
-            <div class="title-line">${modelName} ${r.trim || ''}${r.colour ? ' — ' + r.colour : ''}</div>
+            <div class="title-line">${combined}${r.colour ? ' · ' + r.colour : ''}${damageFlag}</div>
           </div>
-          <div class="body-line">${bodyLine}</div>
+          <div class="body-line">${bodyBits.join(' · ')}</div>
           <div class="meta">
-            <span>Stk <b>${r.mfg || '—'}</b></span>
+            <span>Stock <b>${r.mfg || '—'}</b></span>
             <span>Key <b>${r.key || '—'}</b></span>
             <span>Eng <b>${r.engine || '—'}</b></span>
           </div>
@@ -983,14 +1075,15 @@
   let zxingReader = null;
   let scanning = false;
   let lastNonVinDetection = 0;
+  let scanFrameCounter = 0;
 
   function buildZxingReader() {
     if (zxingReader) return zxingReader;
     const hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.CODE_39,        // Mitsi & Suzuki VIN labels (note: asterisks in `*VIN*` are Code 39 start/stop)
-      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,        // Mitsubishi VIN labels
+      ZXing.BarcodeFormat.CODE_128,       // Suzuki VIN labels (denser — needs sharp focus)
       ZXing.BarcodeFormat.DATA_MATRIX,
     ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
@@ -1000,12 +1093,28 @@
   }
 
   function resetScanReader() {
-    // Force the reader to be rebuilt next scan (clears any internal state)
     zxingReader = null;
   }
 
+  /* Try to decode a canvas using BOTH binarizers. Code 128 on a marginal
+   * live frame sometimes decodes under one but not the other. */
+  function decodeCanvas(canvas) {
+    const reader = buildZxingReader();
+    const binarizers = [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer];
+    for (const Bin of binarizers) {
+      try {
+        const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const bb = new ZXing.BinaryBitmap(new Bin(lum));
+        const result = reader.decodeWithState(bb);
+        if (result && result.getText) return result.getText();
+      } catch (e) { /* NotFound — try next binarizer */ }
+    }
+    return null;
+  }
+
   async function startScan() {
-    resetScanReader();   // ensure fresh hints on every camera open
+    resetScanReader();
+    scanFrameCounter = 0;
     document.getElementById('home').style.display = 'none';
     document.getElementById('entry').style.display = 'none';
     document.getElementById('scan').style.display = 'block';
@@ -1027,6 +1136,18 @@
       const video = document.getElementById('video');
       video.srcObject = videoStream;
       await video.play();
+
+      // Ask for continuous autofocus where supported (helps dense Code 128).
+      try {
+        const track = videoStream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        const advanced = [];
+        if (caps.focusMode && caps.focusMode.includes('continuous')) {
+          advanced.push({ focusMode: 'continuous' });
+        }
+        if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
+      } catch (e) {}
+
       scanning = true;
       scanLoop();
       return true;
@@ -1035,6 +1156,23 @@
       cancelScan();
       return false;
     }
+  }
+
+  // Tap the video to nudge a refocus (where supported)
+  function refocusCamera() {
+    if (!videoStream) return;
+    try {
+      const track = videoStream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps.focusMode && caps.focusMode.includes('single-shot')) {
+        track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] })
+          .then(() => setTimeout(() => {
+            if (caps.focusMode.includes('continuous'))
+              track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(()=>{});
+          }, 800))
+          .catch(()=>{});
+      }
+    } catch (e) {}
   }
 
   function scanLoop() {
@@ -1046,38 +1184,37 @@
       return;
     }
 
-    // Crop to centre region matching the viewfinder for speed + accuracy.
-    // QR mode: square crop; barcode mode: wide rect crop.
     const vw = video.videoWidth, vh = video.videoHeight;
     const isQR = scanMode === 'qr';
-    let cropW, cropH;
+    scanFrameCounter++;
+
+    let sx, sy, cropW, cropH;
     if (isQR) {
       const side = Math.floor(Math.min(vw, vh) * 0.85);
       cropW = side; cropH = side;
+      sx = Math.floor((vw - cropW) / 2);
+      sy = Math.floor((vh - cropH) / 2);
     } else {
-      cropW = Math.floor(vw * 0.92);
-      cropH = Math.floor(vh * 0.45);
+      // Barcode mode: alternate a tall centre band (more horizontal scan
+      // lines to catch a tilted barcode) with the full frame (in case the
+      // barcode is off-centre). Both preserve native resolution.
+      if (scanFrameCounter % 2 === 0) {
+        cropW = Math.floor(vw * 0.95);
+        cropH = Math.floor(vh * 0.60);
+        sx = Math.floor((vw - cropW) / 2);
+        sy = Math.floor((vh - cropH) / 2);
+      } else {
+        cropW = vw; cropH = vh; sx = 0; sy = 0;
+      }
     }
     canvas.width = cropW;
     canvas.height = cropH;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const sx = Math.floor((vw - cropW) / 2);
-    const sy = Math.floor((vh - cropH) / 2);
     ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
 
-    let raw = null;
-    try {
-      const reader = buildZxingReader();
-      const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-      const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-      const result = reader.decodeWithState(binaryBitmap);   // uses cached hints
-      if (result && result.getText) raw = result.getText();
-    } catch (e) {
-      // NotFoundException is expected — keep looping
-    }
-
+    const raw = decodeCanvas(canvas);
     if (raw) handleScanResult(raw);
-    else scanTimeout = setTimeout(scanLoop, 150);            // ~6-7 fps target
+    else scanTimeout = setTimeout(scanLoop, 120);
   }
 
   function handleScanResult(raw) {
@@ -1171,7 +1308,52 @@
   /* ============================================================
    * ENTRY SCREEN
    * ============================================================ */
-  let currentEntry = { vin: '', model: '', colour: '', trim: '', key: '', mfg: '', engine: '', brand: 'mitsubishi' };
+  let currentEntry = {
+    vin: '', brand: 'mitsubishi', model: '', trim: '', colour: '',
+    transmission: '', drive: '', body: '',
+    mfg: '', engine: '', km: '',
+    key: '', twoKeys: 'Yes', logbooks: 'Yes',
+    damage: 'Nil', buildDate: '', checkedInBy: 'Ethan', arrival: '',
+  };
+
+  /* Today's date in AU format DD/MM/YY */
+  function todayAUDate() {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  /* Valid transmissions for a model (+ trim/VIN context). Returns array. */
+  function transmissionsFor(modelKey, trim, vin) {
+    if (modelKey === 'triton') {
+      const dec = decodeTritonVIN(vin);
+      return dec ? [dec.trans] : ['Manual', 'Auto'];
+    }
+    switch (modelKey) {
+      case 'pajero_sport':       return ['Auto'];
+      case 'outlander':          return ['CVT'];
+      case 'outlander_phev':     return ['Auto'];     // single-speed reduction
+      case 'eclipse_cross_phev': return ['Auto'];
+      case 'asx':                return ['Auto'];
+      case 'jimny':              return trim === 'Lite' ? ['Manual'] : ['Manual', 'Auto'];
+      case 'jimny_xl':           return ['Manual', 'Auto'];
+      case 'fronx':              return ['Auto'];
+      case 'swift':              return trim === 'GL' ? ['Manual', 'CVT'] : ['CVT'];
+      default:                   return [];
+    }
+  }
+
+  /* Combined display name: "Triton GLX+ 4x4" etc. */
+  function comboName(entry) {
+    const m = MODELS.find(mm => mm.key === entry.model);
+    if (!m) return entry.model || '';
+    let s = m.name;
+    if (entry.trim) s += ' ' + entry.trim;
+    if (entry.drive) s += ' ' + entry.drive;
+    return s;
+  }
 
   function openEntry(vin) {
     editingId = null;
@@ -1189,57 +1371,78 @@
   }
 
   function _openEntryInternal(vin, existing) {
+    const tritonDec = decodeTritonVIN(vin);
     currentEntry = {
       vin,
+      brand:  existing ? (existing.brand || 'mitsubishi') : defaultBrand,
       model:  existing ? existing.model  : '',
-      colour: existing ? existing.colour : '',
       trim:   existing ? existing.trim   : '',
-      key:    existing ? existing.key    : '',
+      colour: existing ? existing.colour : '',
+      transmission: existing ? (existing.transmission || '') : '',
+      drive:  existing ? (existing.drive || '') : (tritonDec ? tritonDec.drive : ''),
+      body:   existing ? (existing.body || '')  : (tritonDec ? tritonDec.body  : ''),
       mfg:    existing ? existing.mfg    : '',
       engine: existing ? (existing.engine || '') : '',
-      brand:  existing ? (existing.brand || 'mitsubishi') : defaultBrand,
+      km:     existing ? (existing.km || '') : '',
+      key:    existing ? existing.key    : '',
+      twoKeys:  existing ? (existing.twoKeys  || 'Yes') : 'Yes',
+      logbooks: existing ? (existing.logbooks || 'Yes') : 'Yes',
+      damage:   existing ? (existing.damage || 'Nil') : 'Nil',
+      buildDate: existing ? (existing.buildDate || '') : '',
+      checkedInBy: existing ? (existing.checkedInBy || 'Ethan') : 'Ethan',
+      arrival: existing ? (existing.arrival || todayAUDate()) : todayAUDate(),
     };
-    currentBrand = currentEntry.brand;   // keep in sync
+    currentBrand = currentEntry.brand;
 
     document.getElementById('scan').style.display = 'none';
     document.getElementById('home').style.display = 'none';
     document.getElementById('entry').style.display = 'flex';
-
     document.getElementById('vinPill').textContent = vin;
 
-    // Identify model from VIN if no existing model
+    // Identify model from VIN (new entries only)
     const guess = !existing ? guessModelFromVIN(vin) : null;
     if (guess) {
       currentEntry.brand = guess.brand;
       currentEntry.model = guess.modelKey;
+      currentBrand = guess.brand;
     }
+    const autoDetected = !!guess || (existing && existing.model);
 
     refreshEntryBrandStyles();
 
-    // Header line
-    const tritonDec = decodeTritonVIN(vin);
+    // Header
     const year = decodeYearFromVIN(vin);
     let headerText;
     if (tritonDec) {
       headerText = `${year ? year + ' ' : ''}Triton · ${tritonDec.body} · ${tritonDec.drive} · ${tritonDec.trans}`;
     } else if (guess) {
       const m = MODELS.find(mm => mm.key === guess.modelKey);
-      headerText = `${year ? year + ' ' : ''}${m.name} (identified from VIN)`;
-    } else if (existing) {
+      headerText = `${year ? year + ' ' : ''}${m.name} — identified from VIN`;
+    } else if (existing && existing.model) {
       const m = MODELS.find(mm => mm.key === existing.model);
-      headerText = `${year ? year + ' ' : ''}${m ? m.name : ''} (editing)`;
+      headerText = `${year ? year + ' ' : ''}${m ? m.name : ''} — editing`;
     } else {
-      headerText = year ? `${year} — pick the model below` : 'Tap the model below to set';
+      headerText = year ? `${year} — VIN not recognised, pick brand + model below` : 'VIN not recognised — pick below';
     }
     document.getElementById('vinDecoded').textContent = headerText;
+
+    // Show brand + model pickers ONLY when the VIN wasn't auto-detected
+    document.getElementById('brandPickerSection').style.display = autoDetected ? 'none' : 'block';
+    document.getElementById('modelPickerSection').style.display = autoDetected ? 'none' : 'block';
 
     renderModelGrid();
     renderColourGrid();
     renderTrims();
+    renderTransmission();
 
+    // Field values
     document.getElementById('keyInput').value = currentEntry.key || '';
-    // For NEW entries, prefill Stock # and Engine from brand/model defaults.
-    // For EDIT, keep what was saved.
+    document.getElementById('kmInput').value = currentEntry.km || '';
+    document.getElementById('checkedInByInput').value = currentEntry.checkedInBy || 'Ethan';
+    document.getElementById('damageInput').value = (currentEntry.damage && currentEntry.damage !== 'Nil') ? currentEntry.damage : '';
+    document.getElementById('buildDateInput').value = currentEntry.buildDate || '';
+    document.getElementById('arrivalDateDisplay').textContent = currentEntry.arrival;
+
     if (existing) {
       document.getElementById('stockInput').value = currentEntry.mfg || '';
       document.getElementById('engineInput').value = currentEntry.engine || '';
@@ -1249,25 +1452,74 @@
       document.getElementById('engineInput').value = (modelObj && modelObj.enginePrefix) || '';
     }
 
+    // Yes/No toggles
+    syncYesNo('twoKeys');
+    syncYesNo('logbooks');
+
+    // Collapsible summaries
+    setCollapseSummary('damage');
+    setCollapseSummary('buildDate');
+
+    // Mark selections + collapse the ones already chosen (editing)
     if (currentEntry.model) {
       const btn = document.querySelector(`.model-btn[data-key="${currentEntry.model}"]`);
       if (btn) btn.classList.add('selected');
     }
-    if (currentEntry.colour) {
-      const palette = COLOURS[currentEntry.brand];
-      const idx = palette.findIndex(c => c.name === currentEntry.colour);
-      if (idx >= 0) {
-        const btn = document.querySelector(`.colour-btn[data-i="${idx}"]`);
-        if (btn) btn.classList.add('selected');
-      }
-    }
-    if (currentEntry.trim) {
-      document.querySelectorAll('.trim-btn').forEach(b => {
-        if (b.textContent === currentEntry.trim) b.classList.add('selected');
-      });
-    }
+    if (currentEntry.trim) collapsePicker('trim'); else expandPicker('trim');
+    if (currentEntry.colour) collapsePicker('colour'); else expandPicker('colour');
 
     updateSaveState();
+  }
+
+  /* ---- Yes/No toggles ---- */
+  function setYesNo(field, value) {
+    currentEntry[field] = value;
+    syncYesNo(field);
+  }
+  function syncYesNo(field) {
+    document.querySelectorAll(`.yesno-buttons[data-field="${field}"] button`).forEach(b => {
+      b.classList.toggle('selected', b.dataset.v === currentEntry[field]);
+    });
+  }
+
+  /* ---- Collapsible blocks (Damage, Build Date) ---- */
+  function toggleCollapse(blockId) {
+    const block = document.getElementById(blockId);
+    block.classList.toggle('open');
+  }
+  function setCollapseSummary(which) {
+    if (which === 'damage') {
+      const v = document.getElementById('damageInput').value.trim();
+      document.getElementById('damageSummary').textContent = v || 'Nil';
+    } else if (which === 'buildDate') {
+      const v = document.getElementById('buildDateInput').value.trim();
+      document.getElementById('buildDateSummary').textContent = v || '—';
+    }
+  }
+
+  /* ---- Collapsible pickers (Trim, Colour, Transmission) ---- */
+  function expandPicker(which) {
+    const exp = document.getElementById(which + 'Expanded');
+    const col = document.getElementById(which + 'Collapsed');
+    if (exp) exp.style.display = 'block';
+    if (col) col.style.display = 'none';
+  }
+  function collapsePicker(which) {
+    const exp = document.getElementById(which + 'Expanded');
+    const col = document.getElementById(which + 'Collapsed');
+    if (exp) exp.style.display = 'none';
+    if (col) col.style.display = 'flex';
+    if (which === 'trim') {
+      document.getElementById('trimSelectedText').textContent = currentEntry.trim || '—';
+    } else if (which === 'colour') {
+      document.getElementById('colourSelectedText').textContent = currentEntry.colour || '—';
+      const palette = COLOURS[currentEntry.brand] || COLOURS.mitsubishi;
+      const c = palette.find(x => x.name === currentEntry.colour);
+      const sw = document.getElementById('colourSelectedSwatch');
+      if (sw) sw.style.background = c ? c.hex : '#ccc';
+    } else if (which === 'trans') {
+      document.getElementById('transSelectedText').textContent = currentEntry.transmission || '—';
+    }
   }
 
   function refreshEntryBrandStyles() {
@@ -1336,10 +1588,10 @@
     const newModel = MODELS.find(m => m.key === key);
     currentEntry.model = key;
     currentEntry.trim = '';
+    currentEntry.transmission = '';
     document.querySelectorAll('.model-btn').forEach(b => {
       b.classList.toggle('selected', b.dataset.key === key);
     });
-    // Refresh the engine prefill — but only if the user hasn't typed past the previous prefix
     if (newModel && newModel.enginePrefix) {
       const engineInput = document.getElementById('engineInput');
       const cur = engineInput.value;
@@ -1349,6 +1601,43 @@
       }
     }
     renderTrims();
+    expandPicker('trim');
+    renderTransmission();
+    updateSaveState();
+  }
+
+  function renderTransmission() {
+    const section = document.getElementById('transSection');
+    if (!currentEntry.model) { section.style.display = 'none'; return; }
+    const opts = transmissionsFor(currentEntry.model, currentEntry.trim, currentEntry.vin);
+    if (opts.length <= 1) {
+      // Auto-set, no picker needed
+      currentEntry.transmission = opts[0] || '';
+      section.style.display = 'none';
+      return;
+    }
+    // Multiple options — show picker
+    section.style.display = 'block';
+    const tg = document.getElementById('transGrid');
+    tg.className = 'trims cols-' + Math.min(4, opts.length);
+    const brandCls = currentEntry.brand === 'suzuki' ? 'brand-suzu' : '';
+    tg.innerHTML = opts.map(o => `
+      <button class="trim-btn ${brandCls}" onclick="pickTransmission('${o}')">${o}</button>
+    `).join('');
+    if (currentEntry.transmission && opts.includes(currentEntry.transmission)) {
+      collapsePicker('trans');
+      document.querySelectorAll('#transGrid .trim-btn').forEach(b => {
+        b.classList.toggle('selected', b.textContent === currentEntry.transmission);
+      });
+    } else {
+      currentEntry.transmission = '';
+      expandPicker('trans');
+    }
+  }
+
+  function pickTransmission(t) {
+    currentEntry.transmission = t;
+    collapsePicker('trans');
     updateSaveState();
   }
 
@@ -1366,16 +1655,16 @@
       const narrowed = availableTritonTrims(dec);
       if (narrowed) trims = narrowed;
     }
-    tg.className = 'trims cols-' + Math.min(5, trims.length);
+    tg.className = 'trims cols-' + Math.min(4, trims.length > 4 ? 4 : trims.length);
     const brandCls = currentEntry.brand === 'suzuki' ? 'brand-suzu' : '';
     tg.innerHTML = trims.map(t => `
       <button class="trim-btn ${brandCls}" onclick="pickTrim('${t.replace(/'/g, "\\'")}')">${t}</button>
     `).join('');
     // Auto-pick if only one option AND nothing already selected
-    if (trims.length === 1 && !currentEntry.trim) pickTrim(trims[0]);
+    if (trims.length === 1 && !currentEntry.trim) { pickTrim(trims[0]); return; }
     // Re-mark selected if editing
     if (currentEntry.trim) {
-      document.querySelectorAll('.trim-btn').forEach(b => {
+      document.querySelectorAll('#trimGrid .trim-btn').forEach(b => {
         b.classList.toggle('selected', b.textContent === currentEntry.trim);
       });
     }
@@ -1387,14 +1676,17 @@
     document.querySelectorAll('.colour-btn').forEach(b => b.classList.remove('selected'));
     const target = document.querySelector('.colour-btn[data-i="' + i + '"]');
     if (target) target.classList.add('selected');
+    collapsePicker('colour');
     updateSaveState();
   }
 
   function pickTrim(trim) {
     currentEntry.trim = trim;
-    document.querySelectorAll('.trim-btn').forEach(b => {
+    document.querySelectorAll('#trimGrid .trim-btn').forEach(b => {
       b.classList.toggle('selected', b.textContent === trim);
     });
+    collapsePicker('trim');
+    renderTransmission();   // some transmissions depend on trim (Jimny Lite, Swift GL)
     updateSaveState();
   }
 
@@ -1446,29 +1738,33 @@
 
   async function saveEntry() {
     currentEntry.key    = document.getElementById('keyInput').value.trim().toUpperCase();
-    currentEntry.mfg    = document.getElementById('stockInput').value.trim().toUpperCase();  // stored as 'mfg' for backward compat
+    currentEntry.mfg    = document.getElementById('stockInput').value.trim().toUpperCase();  // Stock # (stored as 'mfg' for backward compat)
     currentEntry.engine = document.getElementById('engineInput').value.trim().toUpperCase();
+    currentEntry.km     = document.getElementById('kmInput').value.replace(/[^0-9]/g, '');
+    const dmg = document.getElementById('damageInput').value.trim();
+    currentEntry.damage = dmg || 'Nil';
+    currentEntry.buildDate   = document.getElementById('buildDateInput').value.trim();
+    currentEntry.checkedInBy = document.getElementById('checkedInByInput').value.trim() || 'Ethan';
+    // transmission may have been auto-set with no picker; ensure it's set
+    if (!currentEntry.transmission) {
+      const opts = transmissionsFor(currentEntry.model, currentEntry.trim, currentEntry.vin);
+      if (opts.length === 1) currentEntry.transmission = opts[0];
+    }
     if (!currentEntry.model || !currentEntry.colour || !currentEntry.trim) return;
 
     const records = loadRecords();
     if (editingId != null) {
-      // EDIT existing record — keep original t (timestamp/id)
       const idx = records.findIndex(r => r.t === editingId);
-      if (idx >= 0) {
-        records[idx] = { ...currentEntry, t: editingId };
-      } else {
-        records.push({ ...currentEntry, t: Date.now() });
-      }
+      if (idx >= 0) records[idx] = { ...currentEntry, t: editingId };
+      else records.push({ ...currentEntry, t: Date.now() });
       saveRecordsList(records);
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       editingId = null;
       document.getElementById('entry').style.display = 'none';
       document.getElementById('home').style.display = 'flex';
       renderRecords();
-      // Light visual feedback
       flashHomeToast('✓ Updated');
     } else {
-      // NEW record
       records.push({ ...currentEntry, t: Date.now() });
       saveRecordsList(records);
       savedThisSession++;
@@ -1502,24 +1798,38 @@
   function exportCSV() {
     const records = loadRecords();
     if (records.length === 0) { alert('No records to export yet.'); return; }
-    const cols = ['When','Brand','Stock #','VIN','Year','Model','Trim','Colour','Body','Drive','Transmission','Key','Engine'];
+    // Columns mirror the New Vehicle Check-In Sheet
+    const cols = ['Make','Stock/Order #','Model','Colour','Trim','Transmission','Kilometers',
+                  'Build Date','VIN','Engine Number','Logbooks','2 Keys','Key Number',
+                  'Damage','Checked in By','Arrival Date'];
     let csv = cols.join(',') + '\n';
     records.forEach(r => {
       const model = MODELS.find(m => m.key === r.model);
       const brand = r.brand || (model ? model.brand : '');
+      const make = brand === 'suzuki' ? 'Suzuki' : 'Mitsubishi';
       const dec = r.model === 'triton' ? decodeTritonVIN(r.vin) : null;
+      const drive = r.drive || (dec ? dec.drive : '');
+      const trans = r.transmission || (dec ? dec.trans : '');
+      // Model column combines name + drive, e.g. "Triton 4x4"
+      let modelCol = model ? model.name : (r.model || '');
+      if (drive) modelCol += ' ' + drive;
       const row = [
-        new Date(r.t).toISOString(),
-        brand,
-        r.mfg || '',                       // Stock # (stored as 'mfg' for backward compat)
+        make,
+        r.mfg || '',
+        modelCol,
+        r.colour || '',
+        r.trim || '',
+        trans,
+        r.km || '',
+        r.buildDate || '',
         r.vin || '',
-        decodeYearFromVIN(r.vin) || '',
-        model ? model.name : (r.model || ''),
-        r.trim || '', r.colour || '',
-        dec ? dec.body : '',
-        dec ? dec.drive : '',
-        dec ? dec.trans : '',
-        r.key || '', r.engine || '',
+        r.engine || '',
+        r.logbooks || 'Yes',
+        r.twoKeys || 'Yes',
+        r.key || '',
+        r.damage || 'Nil',
+        r.checkedInBy || 'Ethan',
+        r.arrival || '',
       ];
       csv += row.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\n';
     });
@@ -1536,21 +1846,41 @@
   /* ============================================================
    * INIT
    * ============================================================ */
+  // Keyboard nav: Stock → Engine → Kms → Key → By → Save
   document.getElementById('stockInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('keyInput').focus(); }
-  });
-  document.getElementById('keyInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('engineInput').focus(); }
   });
   document.getElementById('engineInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('kmInput').focus(); }
+  });
+  document.getElementById('kmInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('keyInput').focus(); }
+  });
+  document.getElementById('keyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('checkedInByInput').focus(); }
+  });
+  document.getElementById('checkedInByInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!document.getElementById('saveBtn').disabled) saveEntry();
     }
   });
 
+  // Keep collapsible summaries fresh as the user types
+  document.getElementById('damageInput').addEventListener('input', () => setCollapseSummary('damage'));
+  document.getElementById('buildDateInput').addEventListener('input', e => {
+    // auto-insert slash for MM/YY
+    let v = e.target.value.replace(/[^0-9]/g, '');
+    if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2,4);
+    e.target.value = v;
+    setCollapseSummary('buildDate');
+  });
+
+  // Tap the video to nudge a refocus (helps with dense Code 128)
+  document.getElementById('video').addEventListener('click', refocusCamera);
+
   // Initialize
-  applyScanModeUI();      // safe to call before camera opens (sets defaults)
+  applyScanModeUI();
   renderRecords();
   </script>
 </body>
