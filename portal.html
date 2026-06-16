@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-In Portal · von Bibra</title>
+
+<!-- Same libraries the contract portal uses -->
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- The New-Vehicle fillable PDF, embedded as base64 (works served or from file://) -->
+<script src="forms/new_vehicle.b64.js"></script>
+
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --line:#2a313c;
+    --tx:#e6edf3; --tx2:#9aa4b2; --tx3:#6b7585; --acc:#3b82f6; --ok:#00a050; --err:#e5484d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;height:100vh;}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);}
+  header .brand{font-weight:700;}
+  header .sub{color:var(--tx3);font-size:12px;}
+  header .spacer{flex:1;}
+  .status{font-size:12px;padding:4px 10px;border-radius:20px;background:var(--panel2);color:var(--tx2);border:1px solid var(--line);}
+  .status.ok{color:var(--ok);} .status.err{color:var(--err);}
+  .kiosk{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--line);cursor:pointer;user-select:none;background:var(--panel2);color:var(--tx2);}
+  .kiosk.on{color:var(--ok);border-color:var(--ok);}
+  main{flex:1;display:flex;min-height:0;}
+  .sidebar{width:300px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;}
+  .sb-top{padding:12px;border-bottom:1px solid var(--line);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--panel2);color:var(--tx);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;width:100%;}
+  .btn:hover{border-color:var(--acc);}
+  .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;}
+  .btn.ok{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn + .btn{margin-top:8px;}
+  .sb-list{flex:1;overflow:auto;padding:8px;}
+  .ci{position:relative;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;cursor:pointer;background:var(--panel2);}
+  .ci:hover{border-color:var(--acc);}
+  .ci.active{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset;}
+  .ci .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-right:6px;}
+  .tag.mits{background:#7a1f2b;color:#ffd7dc;} .tag.suzu{background:#1f3a7a;color:#d7e3ff;}
+  .ci .nm{font-weight:600;margin:2px 0;}
+  .ci .meta{font-size:11px;color:var(--tx3);}
+  .empty-sb{color:var(--tx3);text-align:center;padding:30px 14px;font-size:13px;}
+  .stage{flex:1;display:flex;flex-direction:column;min-height:0;}
+  .stage-actions{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);align-items:center;}
+  .stage-actions .btn{width:auto;}
+  .stage-actions .ttl{font-weight:700;}
+  .stage-actions .spacer{flex:1;}
+  .preview{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;align-items:center;gap:14px;background:#0a0d12;}
+  .preview canvas.pg{max-width:820px;width:100%;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.5);border-radius:2px;}
+  .placeholder{color:var(--tx3);text-align:center;margin:auto;}
+  .placeholder .big{font-size:42px;margin-bottom:8px;}
+  .log{height:96px;overflow:auto;border-top:1px solid var(--line);background:#0a0d12;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--tx2);padding:6px 12px;}
+  .log .err{color:var(--err);} .log .ok{color:var(--ok);}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;}
+  .toast.show{opacity:.95;}
+
+  /* Print: show ONLY the dynamically-added canvases (the rendered PDF). */
+  @media print{
+    body > *:not(#_printArea){ display:none !important; }
+    #_printArea{ display:block !important; }
+    #_printArea canvas{ display:block; width:100%; page-break-after:always; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand">🚗 New-Vehicle Check-In Portal</div>
+    <div class="sub">Fills the official PDF from the paddock scanner · one-tap print</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="kiosk" id="kioskBadge" onclick="toggleKiosk()" title="Kiosk = silent printing (requires launching Chrome with --kiosk-printing)">⚠ Normal mode</div>
+  <div class="status" id="status">Starting…</div>
+</header>
+
+<main>
+  <div class="sidebar">
+    <div class="sb-top">
+      <button class="btn primary" id="printAllBtn" onclick="printAllPending()">🖨 Print all pending</button>
+      <button class="btn" onclick="loadSample()">🧪 Load sample (test fill)</button>
+      <button class="btn" onclick="poll()">↻ Refresh</button>
+    </div>
+    <div class="sb-list" id="sbList"><div class="empty-sb">Connecting…</div></div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-actions">
+      <span class="ttl" id="stageTitle">No form selected</span>
+      <span class="spacer"></span>
+      <button class="btn ok" id="printBtn" onclick="printCurrent()" disabled>🖨 Print this</button>
+      <button class="btn" id="dlBtn" onclick="downloadCurrent()" disabled>⬇ Download</button>
+      <button class="btn" id="doneBtn" onclick="markDoneCurrent()" disabled>✓ Mark done</button>
+    </div>
+    <div class="preview" id="preview">
+      <div class="placeholder"><div class="big">📄</div>Select a vehicle on the left,<br>or “Print all pending”.</div>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Config: same Supabase project + REST helper the scanner writes to ───────── */
+const SUPABASE_URL = 'https://cmxktwmjuvhbsowbotbj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_vU9d8SZ4c9P0tSLsdoK-Hw_wElFTjeX';
+const CHECKIN_TABLE = 'vehicle_checkins';
+const POLL_MS = 5000;
+
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pending = [];                 // unprinted rows from Supabase
+let current = null;               // { list:[data...], bytes:Uint8Array, ids:[uuid...], label }
+let isKiosk = localStorage.getItem('vb_kiosk') === 'true';
+
+/* PDF field name = brand prefix + suffix. Suffixes match the AcroForm exactly. */
+const FIELD_MAP = {
+  stock:'Stock', model:'Model', colour:'Colour', trim:'Trim', trans:'Trans',
+  kilometers:'kilometers', build:'Build', vin:'Vin', engine:'Engine',
+  logbooks:'LogBooks', two_keys:'2keys', keynumber:'keynumber',
+  damage:'damage', checkin:'CheckIn', arrivaldate:'arrivaldate'
+};
+
+/* ── Supabase REST ──────────────────────────────────────────────────────────── */
+async function sb(path, { method='GET', body, prefer } = {}){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers:{
+      'apikey':SUPABASE_KEY,
+      'Authorization':`Bearer ${SUPABASE_KEY}`,
+      'Content-Type':'application/json',
+      ...(prefer ? { Prefer:prefer } : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error(`Supabase ${res.status}: ${t}`); }
+  if(res.status === 204) return null;
+  const t = await res.text();
+  return t ? JSON.parse(t) : null;
+}
+
+/* ── PDF fill (mirrors the contract portal's fillForms) ─────────────────────── */
+function templateBytes(){
+  const b64 = window.NEW_VEHICLE_PDF_B64;
+  if(!b64) throw new Error('PDF template (forms/new_vehicle.b64.js) not loaded');
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+async function fillForm(data){
+  const doc  = await PDFLib.PDFDocument.load(templateBytes());
+  const form = doc.getForm();
+  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const prefix = (data.brand === 'suzuki') ? 's_' : 'm_';
+  for(const [key, suffix] of Object.entries(FIELD_MAP)){
+    try{
+      const f = form.getTextField(prefix + suffix);
+      f.setFontSize(9);
+      f.updateAppearances(font);
+      f.setText(String(data[key] ?? ''));
+    }catch(e){ /* field absent for this brand — fine */ }
+  }
+  // Tick the brand box (note: lowercase m_, uppercase S_).
+  try{ form.getCheckBox(data.brand === 'suzuki' ? 'S_Checkbox' : 'm_Checkbox').check(); }catch(e){}
+  form.flatten();
+  doc.getPages().forEach(p => p.node.delete(PDFLib.PDFName.of('Annots')));
+  return doc;
+}
+
+async function buildPack(list){
+  const merged = await PDFLib.PDFDocument.create();
+  for(const data of list){
+    const doc   = await fillForm(data);
+    const pages = await merged.copyPages(doc, doc.getPageIndices());
+    pages.forEach(p => merged.addPage(p));
+  }
+  return await merged.save();
+}
+
+/* ── Preview + print (canvas render, then window.print) ─────────────────────── */
+async function renderPreview(bytes){
+  const host = document.getElementById('preview');
+  host.innerHTML = '';
+  const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale:1.6 });
+    const c = document.createElement('canvas');
+    c.className='pg'; c.width=vp.width; c.height=vp.height;
+    await page.render({ canvasContext:c.getContext('2d'), viewport:vp }).promise;
+    host.appendChild(c);
+  }
+}
+
+// Render to canvases in a hidden #_printArea, then window.print(). Same approach
+// as the contract portal: --kiosk-printing makes this silent; otherwise the OS
+// print dialog appears (the chosen one-tap mode).
+async function printPdfBytes(bytes){
+  let area = document.getElementById('_printArea');
+  if(area) area.remove();
+  area = document.createElement('div');
+  area.id = '_printArea';
+  document.body.appendChild(area);
+  try{
+    const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale:3 });   // ~216 DPI
+      const c = document.createElement('canvas');
+      c.width=vp.width; c.height=vp.height;
+      await page.render({ canvasContext:c.getContext('2d'), viewport:vp }).promise;
+      area.appendChild(c);
+    }
+    await new Promise(r => setTimeout(r, 250));
+    if(isKiosk){ try{ window.focus(); }catch(e){} }
+    window.print();
+    log('Print command issued ('+pdf.numPages+' pages)', 'ok');
+    await new Promise(r => setTimeout(r, 1000));
+  }catch(e){ log('Print error: '+e.message, 'err'); toast('Print failed: '+e.message); }
+  finally{ const pa = document.getElementById('_printArea'); if(pa) pa.remove(); }
+}
+
+/* ── Selection / actions ────────────────────────────────────────────────────── */
+function vehName(d){
+  const brand = d.brand === 'suzuki' ? 'Suzuki' : 'Mitsubishi';
+  return `${brand} ${d.model||''}`.trim() + (d.stock ? ' · '+d.stock : '');
+}
+
+async function setCurrent(list, ids, label){
+  log('Filling '+list.length+' form(s)…');
+  try{
+    const bytes = await buildPack(list);
+    current = { list, ids:ids||[], bytes, label:label||(list.length+' forms') };
+    await renderPreview(bytes);
+    document.getElementById('stageTitle').textContent = label || (list.length+' vehicle(s)');
+    document.getElementById('printBtn').disabled = false;
+    document.getElementById('dlBtn').disabled = false;
+    document.getElementById('doneBtn').disabled = (current.ids.length === 0);
+    log('Ready — '+list.length+' form(s)', 'ok');
+  }catch(e){ log('Fill error: '+e.message, 'err'); toast('Fill failed: '+e.message); }
+}
+
+async function selectVehicle(id){
+  const row = pending.find(r => String(r.id) === String(id));
+  if(!row) return;
+  renderSidebar(id);
+  await setCurrent([row], [row.id], vehName(row));
+}
+
+async function printAllPending(){
+  if(!pending.length){ toast('Nothing pending'); return; }
+  await setCurrent(pending.slice(), pending.map(r => r.id), 'All pending ('+pending.length+')');
+  await printCurrent();
+}
+
+async function printCurrent(){
+  if(!current){ toast('Nothing to print'); return; }
+  const btn = document.getElementById('printBtn'); btn.disabled = true;
+  await printPdfBytes(current.bytes);
+  if(current.ids.length){
+    try{ await markPrinted(current.ids); log('Marked '+current.ids.length+' printed', 'ok'); }
+    catch(e){ log('Mark-printed failed: '+e.message, 'err'); }
+    await poll();
+  }
+  btn.disabled = false;
+}
+
+async function markDoneCurrent(){
+  if(!current || !current.ids.length) return;
+  try{ await markPrinted(current.ids); toast('Marked done'); await poll(); clearStage(); }
+  catch(e){ toast('Failed: '+e.message); }
+}
+
+async function markPrinted(ids){
+  if(!ids.length) return;
+  const list = '(' + ids.join(',') + ')';   // uuids are safe unquoted in a PostgREST in.() filter
+  await sb(`${CHECKIN_TABLE}?id=in.${list}`, {
+    method:'PATCH', body:{ printed_at:new Date().toISOString() }, prefer:'return=minimal'
+  });
+}
+
+function downloadCurrent(){
+  if(!current){ toast('Nothing to download'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([current.bytes], { type:'application/pdf' }));
+  a.download = 'CheckIn_' + new Date().toISOString().slice(0,10) + '.pdf';
+  a.click();
+}
+
+function clearStage(){
+  current = null;
+  document.getElementById('preview').innerHTML = '<div class="placeholder"><div class="big">📄</div>Select a vehicle on the left,<br>or “Print all pending”.</div>';
+  document.getElementById('stageTitle').textContent = 'No form selected';
+  ['printBtn','dlBtn','doneBtn'].forEach(id => document.getElementById(id).disabled = true);
+}
+
+/* ── Supabase polling ───────────────────────────────────────────────────────── */
+async function poll(){
+  try{
+    const rows = await sb(`${CHECKIN_TABLE}?printed_at=is.null&order=created_at.asc`);
+    pending = rows || [];
+    renderSidebar(current && current.ids.length === 1 ? current.ids[0] : null);
+    setStatus('Connected · '+pending.length+' pending', 'ok');
+    document.getElementById('printAllBtn').disabled = pending.length === 0;
+  }catch(e){
+    setStatus('Offline — '+e.message, 'err');
+  }
+}
+
+function renderSidebar(activeId){
+  const list = document.getElementById('sbList');
+  if(!pending.length){ list.innerHTML = '<div class="empty-sb">No vehicles waiting.<br>Send some from the scanner →</div>'; return; }
+  list.innerHTML = pending.map(r => {
+    const brandCls = r.brand === 'suzuki' ? 'suzu' : 'mits';
+    const brandLbl = r.brand === 'suzuki' ? 'SUZU' : 'MITS';
+    const when = r.created_at ? new Date(r.created_at).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+    const active = String(r.id) === String(activeId) ? ' active' : '';
+    return `<div class="ci${active}" onclick='selectVehicle(${JSON.stringify(String(r.id))})'>
+      <div><span class="tag ${brandCls}">${brandLbl}</span><span class="nm">${esc(r.model||'—')}</span></div>
+      <div class="meta">Stock ${esc(r.stock||'—')} · VIN ${esc((r.vin||'').slice(-6))}</div>
+      <div class="meta">${when}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Sample data (Phase A: verify filling with no Supabase) ──────────────────── */
+function loadSample(){
+  const samples = [
+    { brand:'mitsubishi', vin:'MMAJYKL10RH000123', stock:'AN12345', model:'Triton 4x4', colour:'Graphite Grey',
+      trim:'GLX-R', trans:'Auto', kilometers:'15', build:'03/25', engine:'4N16AB1234', logbooks:'Yes',
+      two_keys:'Yes', keynumber:'K-204', damage:'Nil', checkin:'Ethan', arrivaldate:'16/06/26' },
+    { brand:'suzuki', vin:'JSAFTGM4W00045678', stock:'AN67890', model:'Swift', colour:'Pure White Pearl',
+      trim:'GL', trans:'CVT', kilometers:'8', build:'05/25', engine:'K12C-998877', logbooks:'Yes',
+      two_keys:'No', keynumber:'K-118', damage:'Small scratch RH door', checkin:'Ethan', arrivaldate:'16/06/26' }
+  ];
+  setCurrent(samples, [], 'Sample · 2 vehicles');
+}
+
+/* ── Misc UI ────────────────────────────────────────────────────────────────── */
+function setStatus(txt, cls){ const el = document.getElementById('status'); el.textContent = txt; el.className = 'status ' + (cls||''); }
+function toggleKiosk(){ isKiosk = !isKiosk; localStorage.setItem('vb_kiosk', isKiosk?'true':'false'); updateKiosk(); }
+function updateKiosk(){ const b = document.getElementById('kioskBadge'); b.className = 'kiosk ' + (isKiosk?'on':''); b.textContent = isKiosk ? '⚡ Kiosk mode' : '⚠ Normal mode'; }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function log(msg, cls){ const el = document.getElementById('log'); const d = document.createElement('div'); if(cls) d.className = cls; d.textContent = new Date().toLocaleTimeString('en-AU')+' '+msg; el.appendChild(d); el.scrollTop = el.scrollHeight; }
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2200); }
+
+/* ── Boot ───────────────────────────────────────────────────────────────────── */
+updateKiosk();
+if(!window.PDFLib){ setStatus('pdf-lib failed to load', 'err'); }
+poll();
+setInterval(poll, POLL_MS);
+log('Portal ready. Polling Supabase every '+(POLL_MS/1000)+'s.');
+</script>
+</body>
+</html>

@@ -623,7 +623,7 @@
   <!-- HOME -->
   <div id="home">
     <div class="topbar" id="homeTopbar">
-      <div class="left"><button onclick="exportCSV()">Export</button></div>
+      <div class="left"><button onclick="sendToPortal()" id="sendBtn">Send to PC<span id="sendBadge" style="display:none;margin-left:5px;background:#00a050;color:#fff;border-radius:9px;padding:0 6px;font-size:11px;font-weight:700;"></span></button> <button onclick="exportCSV()">Export</button></div>
       <div class="title">Dealership Scanner</div>
       <div class="right"><span class="records-count" id="recCount">0</span></div>
     </div>
@@ -1116,6 +1116,7 @@
   function renderRecords() {
     const records = loadRecords();
     document.getElementById('recCount').textContent = records.length;
+    updateSendBadge();
     const el = document.getElementById('records');
     if (records.length === 0) {
       el.innerHTML = '<div class="empty"><div class="big">＋</div>No vehicles scanned yet.<br>Tap the <b>+</b> button to scan,<br>or <b>⌨</b> to enter a VIN manually.</div>';
@@ -2301,6 +2302,98 @@
     document.body.appendChild(a);
     a.click(); a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  /* ============================================================
+   * SEND TO PC  (Supabase relay → portal that fills & prints the PDF)
+   * ============================================================ */
+  // Same Supabase project + REST pattern the portal already uses.
+  const SUPABASE_URL = 'https://cmxktwmjuvhbsowbotbj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_vU9d8SZ4c9P0tSLsdoK-Hw_wElFTjeX';
+  const CHECKIN_TABLE = 'vehicle_checkins';
+
+  async function sb(path, { method = 'GET', body, prefer } = {}) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      method,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        ...(prefer ? { Prefer: prefer } : {})
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`Supabase ${res.status}: ${t}`); }
+    if (res.status === 204) return null;
+    const t = await res.text();
+    return t ? JSON.parse(t) : null;
+  }
+
+  // Map a stored record → the flat field set the New-Vehicle PDF expects.
+  // Mirrors exportCSV()'s decode logic so the printed form matches the CSV.
+  function buildCheckinData(r) {
+    const model = MODELS.find(m => m.key === r.model);
+    const brand = r.brand || (model ? model.brand : 'mitsubishi');
+    const dec   = r.model === 'triton' ? decodeTritonVIN(r.vin) : null;
+    const drive = r.drive || (dec ? dec.drive : '');
+    const trans = r.transmission || (dec ? dec.trans : '');
+    let modelCol = model ? model.name : (r.model || '');
+    if (drive) modelCol += ' ' + drive;
+    return {
+      brand:       brand === 'suzuki' ? 'suzuki' : 'mitsubishi',
+      vin:         r.vin || '',
+      stock:       r.mfg || '',
+      model:       modelCol,
+      colour:      r.colour || '',
+      trim:        r.trim || '',
+      trans:       trans,
+      kilometers:  r.km || '',
+      build:       r.buildDate || '',
+      engine:      r.engine || '',
+      logbooks:    r.logbooks || 'Yes',
+      two_keys:    r.twoKeys || 'Yes',
+      keynumber:   r.key || '',
+      damage:      r.damage || 'Nil',
+      checkin:     r.checkedInBy || 'Ethan',
+      arrivaldate: r.arrival || ''
+    };
+  }
+
+  function updateSendBadge() {
+    const badge = document.getElementById('sendBadge');
+    if (!badge) return;
+    const unsent = loadRecords().filter(r => !r.sentAt).length;
+    badge.textContent = unsent ? unsent : '';
+    badge.style.display = unsent ? 'inline-block' : 'none';
+  }
+
+  // Push every not-yet-sent record to Supabase as one batch. Idempotent via
+  // client_t (a re-tap merges instead of duplicating). Marks records sent locally.
+  async function sendToPortal() {
+    const btn     = document.getElementById('sendBtn');
+    const records = loadRecords();
+    const unsent  = records.filter(r => !r.sentAt);
+    if (unsent.length === 0) { flashHomeToast('Nothing new to send'); return; }
+    const batch_id = 'b' + Date.now();
+    const rows = unsent.map(r => ({ ...buildCheckinData(r), client_t: r.t, batch_id }));
+    if (btn) btn.disabled = true;
+    try {
+      await sb(`${CHECKIN_TABLE}?on_conflict=client_t`, {
+        method: 'POST',
+        body: rows,
+        prefer: 'resolution=merge-duplicates,return=minimal'
+      });
+      const now = Date.now();
+      unsent.forEach(r => { r.sentAt = now; r.batchId = batch_id; });  // refs into `records`
+      saveRecordsList(records);
+      flashHomeToast('✓ Sent ' + rows.length + ' to PC');
+    } catch (e) {
+      console.error(e);
+      flashHomeToast('✗ Send failed — will retry');
+    } finally {
+      if (btn) btn.disabled = false;
+      updateSendBadge();
+    }
   }
 
   /* ============================================================
