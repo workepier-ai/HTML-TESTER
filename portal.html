@@ -128,6 +128,21 @@ const FIELD_MAP = {
   damage:'damage', checkin:'CheckIn', arrivaldate:'arrivaldate'
 };
 
+/* ── Font config — play with size/bold per field here. Sizes are points.
+ * Defaults: 50% larger than the old 9pt (=14) and BOLD. Override by FIELD_MAP
+ * key (applies to both m_ and s_), e.g.:
+ *   vin:    { size: 12, bold: true },
+ *   damage: { size: 11, bold: false }, */
+const FONT_DEFAULT = { size: 14, bold: true };
+const FONT_CONFIG = {
+  // vin: { size: 12 }, model: { size: 16, bold: true },
+};
+function fontFor(key){
+  const c = FONT_CONFIG[key] || {};
+  return { size: c.size != null ? c.size : FONT_DEFAULT.size,
+           bold: c.bold != null ? c.bold : FONT_DEFAULT.bold };
+}
+
 /* ── Supabase REST ──────────────────────────────────────────────────────────── */
 async function sb(path, { method='GET', body, prefer } = {}){
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -156,13 +171,15 @@ function templateBytes(){
 async function fillForm(data){
   const doc  = await PDFLib.PDFDocument.load(templateBytes());
   const form = doc.getForm();
-  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const fontReg  = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
   const prefix = (data.brand === 'suzuki') ? 's_' : 'm_';
   for(const [key, suffix] of Object.entries(FIELD_MAP)){
     try{
       const f = form.getTextField(prefix + suffix);
-      f.setFontSize(9);
-      f.updateAppearances(font);
+      const fc = fontFor(key);
+      f.setFontSize(fc.size);
+      f.updateAppearances(fc.bold ? fontBold : fontReg);
       f.setText(String(data[key] ?? ''));
     }catch(e){ /* field absent for this brand — fine */ }
   }

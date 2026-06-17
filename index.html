@@ -697,8 +697,8 @@
           enterkeyhint="next" placeholder="e.g. 3099563" />
       </div>
 
-      <!-- Engine # — typed second, prefilled by model -->
-      <div class="field-row">
+      <!-- Engine # — typed second, prefilled by model (hidden for Suzuki) -->
+      <div class="field-row" id="engineRow">
         <label for="engineInput">Engine #</label>
         <input id="engineInput" type="text" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="next" />
       </div>
@@ -729,6 +729,15 @@
         <div class="picker-expanded" id="trimExpanded">
           <div class="section-label">Trim</div>
           <div class="trims" id="trimGrid"></div>
+        </div>
+      </div>
+
+      <!-- Upholstery (Leather/Cloth) — auto from spec where known; fills PDF "Trim" -->
+      <div class="yesno-row" id="upholsteryRow">
+        <span class="yesno-label">Upholstery</span>
+        <div class="yesno-buttons" data-field="upholstery">
+          <button data-v="Leather" onclick="setYesNo('upholstery','Leather')">Leather</button>
+          <button data-v="Cloth" onclick="setYesNo('upholstery','Cloth')">Cloth</button>
         </div>
       </div>
 
@@ -969,6 +978,21 @@
     'YC': ['GLX'],
     'ZC': ['GLX', 'GLS', 'GSR'],
   };
+
+  /* Upholstery (Leather/Cloth) by model + spec — drives the PDF "Trim" field.
+   * Values: 'Leather' | 'Cloth' | 'ask' (offer a Leather/Cloth choice in entry).
+   * Use '*' as a catch-all for a whole model. Anything not listed defaults to 'ask'.
+   * Fill these in so the common specs auto-set and never prompt. e.g.:
+   *   triton: { 'GLX':'Cloth', 'GLX+':'Cloth', 'GLS':'ask', 'GSR':'Leather' },
+   *   swift:  { '*':'Cloth' }, */
+  const UPHOLSTERY = {
+  };
+  function upholsteryFor(modelKey, trim) {
+    const m = UPHOLSTERY[modelKey];
+    if (!m) return 'ask';
+    const v = (m[trim] != null) ? m[trim] : (m['*'] != null ? m['*'] : 'ask');
+    return v || 'ask';
+  }
 
   /* Colour palettes per brand — current AU lineup colours.
    * Mitsubishi: covers Triton, Pajero Sport, Outlander/PHEV, Eclipse Cross PHEV, ASX.
@@ -1852,6 +1876,7 @@
       buildDate: existing ? (existing.buildDate || '') : '',
       checkedInBy: existing ? (existing.checkedInBy || 'Ethan') : 'Ethan',
       arrival: existing ? (existing.arrival || todayAUDate()) : todayAUDate(),
+      upholstery: existing ? (existing.upholstery || '') : '',
     };
     currentBrand = currentEntry.brand;
 
@@ -1910,7 +1935,8 @@
     } else {
       document.getElementById('stockInput').value = MFG_PREFIX[currentEntry.brand] || '';
       const modelObj = MODELS.find(m => m.key === currentEntry.model);
-      document.getElementById('engineInput').value = (modelObj && modelObj.enginePrefix) || '';
+      document.getElementById('engineInput').value =
+        currentEntry.brand === 'suzuki' ? '' : ((modelObj && modelObj.enginePrefix) || '');
     }
 
     // Yes/No toggles
@@ -1929,18 +1955,53 @@
     if (currentEntry.trim) collapsePicker('trim'); else expandPicker('trim');
     if (currentEntry.colour) collapsePicker('colour'); else expandPicker('colour');
 
+    applyBrandFields();
+    applyUpholsteryDefault();
+
     updateSaveState();
+
+    // Speed: after a fresh scan, jump straight into Stock # (opens keyboard where the OS allows)
+    if (!existing) {
+      setTimeout(() => {
+        const s = document.getElementById('stockInput');
+        if (s) { s.focus(); try { s.setSelectionRange(s.value.length, s.value.length); } catch (e) {} }
+      }, 180);
+    }
   }
 
   /* ---- Yes/No toggles ---- */
   function setYesNo(field, value) {
     currentEntry[field] = value;
     syncYesNo(field);
+    updateSaveState();
   }
   function syncYesNo(field) {
     document.querySelectorAll(`.yesno-buttons[data-field="${field}"] button`).forEach(b => {
       b.classList.toggle('selected', b.dataset.v === currentEntry[field]);
     });
+  }
+
+  /* Suzuki: engine number isn't recorded — hide the row and keep it blank. */
+  function applyBrandFields() {
+    const suzuki = currentEntry.brand === 'suzuki';
+    const row = document.getElementById('engineRow');
+    if (row) row.style.display = suzuki ? 'none' : '';
+    if (suzuki) {
+      currentEntry.engine = '';
+      const ei = document.getElementById('engineInput');
+      if (ei) ei.value = '';
+    }
+  }
+
+  /* Resolve Leather/Cloth from the UPHOLSTERY map; leave blank (needs a tap) when ambiguous. */
+  function applyUpholsteryDefault() {
+    const u = upholsteryFor(currentEntry.model, currentEntry.trim);
+    if (u === 'Leather' || u === 'Cloth') {
+      currentEntry.upholstery = u;
+    } else if (currentEntry.upholstery !== 'Leather' && currentEntry.upholstery !== 'Cloth') {
+      currentEntry.upholstery = '';
+    }
+    syncYesNo('upholstery');
   }
 
   /* ---- Collapsible blocks (Damage, Build Date) ---- */
@@ -2007,6 +2068,7 @@
     currentEntry.model = '';
     currentEntry.trim = '';
     currentEntry.colour = '';
+    currentEntry.upholstery = '';
     // Refresh Stock # prefill if user hasn't typed anything custom
     const stockInput = document.getElementById('stockInput');
     if (stockInput.value === '' || stockInput.value === oldPrefix) {
@@ -2022,6 +2084,8 @@
     renderModelGrid();
     renderColourGrid();
     renderTrims();
+    applyBrandFields();
+    syncYesNo('upholstery');
     updateSaveState();
   }
 
@@ -2053,8 +2117,10 @@
     document.querySelectorAll('.model-btn').forEach(b => {
       b.classList.toggle('selected', b.dataset.key === key);
     });
-    if (newModel && newModel.enginePrefix) {
-      const engineInput = document.getElementById('engineInput');
+    const engineInput = document.getElementById('engineInput');
+    if (currentEntry.brand === 'suzuki') {
+      engineInput.value = '';
+    } else if (newModel && newModel.enginePrefix) {
       const cur = engineInput.value;
       const prevPrefix = (prevModel && prevModel.enginePrefix) || '';
       if (cur === '' || cur === prevPrefix || cur === prevPrefix.trim()) {
@@ -2147,6 +2213,7 @@
       b.classList.toggle('selected', b.textContent === trim);
     });
     collapsePicker('trim');
+    applyUpholsteryDefault();
     renderTransmission();   // some transmissions depend on trim (Jimny Lite, Swift GL)
     updateSaveState();
   }
@@ -2187,7 +2254,7 @@
 
   function updateSaveState() {
     document.getElementById('saveBtn').disabled =
-      !(currentEntry.model && currentEntry.colour && currentEntry.trim);
+      !(currentEntry.model && currentEntry.colour && currentEntry.trim && currentEntry.upholstery);
   }
 
   function cancelEntry() {
@@ -2200,7 +2267,7 @@
   async function saveEntry() {
     currentEntry.key    = document.getElementById('keyInput').value.trim().toUpperCase();
     currentEntry.mfg    = document.getElementById('stockInput').value.trim().toUpperCase();  // Stock # (stored as 'mfg' for backward compat)
-    currentEntry.engine = document.getElementById('engineInput').value.trim().toUpperCase();
+    currentEntry.engine = currentEntry.brand === 'suzuki' ? '' : document.getElementById('engineInput').value.trim().toUpperCase();
     currentEntry.km     = document.getElementById('kmInput').value.replace(/[^0-9]/g, '');
     const dmg = document.getElementById('damageInput').value.trim();
     currentEntry.damage = dmg || 'Nil';
@@ -2211,7 +2278,7 @@
       const opts = transmissionsFor(currentEntry.model, currentEntry.trim, currentEntry.vin);
       if (opts.length === 1) currentEntry.transmission = opts[0];
     }
-    if (!currentEntry.model || !currentEntry.colour || !currentEntry.trim) return;
+    if (!currentEntry.model || !currentEntry.colour || !currentEntry.trim || !currentEntry.upholstery) return;
 
     const records = loadRecords();
     if (editingId != null) {
@@ -2333,23 +2400,23 @@
   // Mirrors exportCSV()'s decode logic so the printed form matches the CSV.
   function buildCheckinData(r) {
     const model = MODELS.find(m => m.key === r.model);
-    const brand = r.brand || (model ? model.brand : 'mitsubishi');
+    const brand = (r.brand || (model ? model.brand : 'mitsubishi')) === 'suzuki' ? 'suzuki' : 'mitsubishi';
     const dec   = r.model === 'triton' ? decodeTritonVIN(r.vin) : null;
-    const drive = r.drive || (dec ? dec.drive : '');
     const trans = r.transmission || (dec ? dec.trans : '');
+    // PDF "Model" = model + spec, e.g. "Triton GSR"
     let modelCol = model ? model.name : (r.model || '');
-    if (drive) modelCol += ' ' + drive;
+    if (r.trim) modelCol += ' ' + r.trim;
     return {
-      brand:       brand === 'suzuki' ? 'suzuki' : 'mitsubishi',
+      brand:       brand,
       vin:         r.vin || '',
       stock:       r.mfg || '',
       model:       modelCol,
       colour:      r.colour || '',
-      trim:        r.trim || '',
+      trim:        r.upholstery || '',          // PDF "Trim" = upholstery (Leather/Cloth)
       trans:       trans,
       kilometers:  r.km || '',
       build:       r.buildDate || '',
-      engine:      r.engine || '',
+      engine:      brand === 'suzuki' ? '' : (r.engine || ''),
       logbooks:    r.logbooks || 'Yes',
       two_keys:    r.twoKeys || 'Yes',
       keynumber:   r.key || '',
@@ -2401,7 +2468,11 @@
    * ============================================================ */
   // Keyboard nav: Stock → Engine → Kms → Key → By → Save
   document.getElementById('stockInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('engineInput').focus(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const next = currentEntry.brand === 'suzuki' ? 'kmInput' : 'engineInput';
+      document.getElementById(next).focus();
+    }
   });
   document.getElementById('engineInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('kmInput').focus(); }
