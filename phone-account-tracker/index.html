@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Account Tracker</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel2: #1e2229;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #8b93a5;
+    --accent: #4f8cff;
+    --accent2: #3ddc97;
+    --danger: #ff5d5d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    background: var(--panel); position: sticky; top: 0; z-index: 20;
+  }
+  header h1 { font-size: 17px; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  button {
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 12px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.1); }
+  button.icon { padding: 4px 8px; font-size: 12px; border-radius: 6px; }
+  button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  main { padding: 20px; overflow-x: auto; }
+  table { border-collapse: collapse; min-width: 700px; }
+  th, td {
+    border: 1px solid var(--border); padding: 8px 12px;
+    text-align: left; background: var(--panel); white-space: nowrap;
+  }
+  th { background: var(--panel2); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  th.field-col { cursor: pointer; }
+  th.field-col:hover { color: var(--text); }
+  th .del-field { margin-left: 6px; color: var(--muted); cursor: pointer; font-size: 11px; }
+  th .del-field:hover { color: var(--danger); }
+  td.check-cell { text-align: center; }
+  td.check-cell input { width: 17px; height: 17px; accent-color: var(--accent2); cursor: pointer; }
+  .phone { font-weight: 600; font-size: 14px; }
+  .email-addr { color: var(--accent); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  .pw { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; letter-spacing: 1px; }
+  .copy-btn { margin-left: 6px; }
+  td.notes-cell input {
+    background: transparent; border: none; color: var(--text);
+    font: inherit; width: 140px; outline: none;
+  }
+  td.notes-cell input:focus { border-bottom: 1px solid var(--accent); }
+  .empty { color: var(--muted); padding: 40px; text-align: center; }
+
+  /* Modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px; width: 360px; max-width: 92vw;
+  }
+  .modal h2 { font-size: 15px; margin-bottom: 14px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .modal input {
+    width: 100%; padding: 9px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 14px;
+  }
+  .modal input:focus { outline: none; border-color: var(--accent); }
+  .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  .modal .status { font-size: 12px; color: var(--accent2); margin-top: 10px; min-height: 18px; }
+  .modal .status.err { color: var(--danger); }
+
+  /* Inbox drawer */
+  #inbox {
+    position: fixed; top: 0; right: -520px; width: 500px; max-width: 96vw; height: 100vh;
+    background: var(--panel); border-left: 1px solid var(--border); z-index: 40;
+    transition: right .2s ease; display: flex; flex-direction: column;
+  }
+  #inbox.open { right: 0; }
+  #inbox .head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  #inbox .head .addr { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; }
+  #inbox .list { overflow-y: auto; flex: 1; }
+  .msg-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .msg-item:hover { background: var(--panel2); }
+  .msg-item .from { font-size: 12px; color: var(--muted); }
+  .msg-item .subj { font-weight: 600; font-size: 13px; }
+  #msg-view { position: fixed; inset: 5vh 4vw; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; z-index: 60; display: none; flex-direction: column; }
+  #msg-view.open { display: flex; }
+  #msg-view .head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+  #msg-view iframe { flex: 1; border: 0; background: #fff; border-radius: 0 0 12px 12px; }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 18px; border-radius: 10px; font-size: 13px; z-index: 100;
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📱 Phone Account Tracker</h1>
+  <span class="sub" id="count"></span>
+  <div class="spacer"></div>
+  <button id="add-field-btn">＋ Field</button>
+  <button class="primary" id="add-account-btn">＋ Add Account</button>
+</header>
+
+<main>
+  <table id="grid" hidden>
+    <thead><tr id="head-row"></tr></thead>
+    <tbody id="body"></tbody>
+  </table>
+  <div class="empty" id="empty">Loading…</div>
+</main>
+
+<!-- Add account modal -->
+<div class="overlay" id="add-overlay">
+  <div class="modal">
+    <h2>Add account</h2>
+    <label>Phone number (account name)</label>
+    <input id="in-phone" placeholder="e.g. 0412 345 678" autocomplete="off">
+    <label>Email password — leave blank to auto-generate</label>
+    <input id="in-pass" placeholder="auto-generate" autocomplete="off">
+    <div class="status" id="add-status"></div>
+    <div class="row">
+      <button id="add-cancel">Cancel</button>
+      <button class="primary" id="add-save">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inbox drawer -->
+<div id="inbox">
+  <div class="head">
+    <strong>📬 Inbox</strong>
+    <span class="addr" id="inbox-addr"></span>
+    <div class="spacer"></div>
+    <button class="icon" id="inbox-refresh">↻ Refresh</button>
+    <button class="icon" id="inbox-close">✕</button>
+  </div>
+  <div class="list" id="inbox-list"><div class="empty">–</div></div>
+</div>
+
+<!-- Message viewer -->
+<div id="msg-view">
+  <div class="head">
+    <strong id="msg-subj"></strong>
+    <div class="spacer"></div>
+    <button class="icon" id="msg-close">✕</button>
+  </div>
+  <iframe id="msg-frame" sandbox=""></iframe>
+</div>
+
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+/* == CONFIG comes from config.js (gitignored — copy config.example.js to config.js) == */
+const { SUPABASE_URL, SUPABASE_KEY } = window.APP_CONFIG || {};
+const MAILTM = 'https://api.mail.tm';
+
+/* ================= HELPERS ================= */
+const $ = (id) => document.getElementById(id);
+
+function toast(msg, ms = 2200) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+async function sb(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function genPassword(len = 14) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => chars[n % chars.length]).join('');
+}
+
+function copyText(text, label) {
+  navigator.clipboard.writeText(text).then(
+    () => toast(`${label} copied`),
+    () => toast('Copy failed — clipboard blocked', 3000)
+  );
+}
+
+/* ================= MAIL.TM ================= */
+async function mailtmCreateAccount(phone, password) {
+  const doms = await (await fetch(`${MAILTM}/domains`)).json();
+  const domain = (doms['hydra:member'] || []).find((d) => d.isActive);
+  if (!domain) throw new Error('mail.tm has no active domains right now');
+  const clean = phone.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'acct';
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const suffix = Math.random().toString(36).slice(2, 6);
+    const address = `p${clean}${attempt === 0 ? '' : suffix}@${domain.domain}`;
+    const res = await fetch(`${MAILTM}/accounts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, password }),
+    });
+    if (res.ok) {
+      const acct = await res.json();
+      return { address, id: acct.id };
+    }
+    if (res.status !== 422 && res.status !== 400) {
+      throw new Error(`mail.tm error ${res.status}: ${await res.text()}`);
+    }
+    // 422/400 usually means the address is taken — retry with a suffix
+  }
+  throw new Error('Could not find a free email address after several tries');
+}
+
+const tokenCache = {}; // address -> jwt
+async function mailtmToken(address, password) {
+  if (tokenCache[address]) return tokenCache[address];
+  const res = await fetch(`${MAILTM}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, password }),
+  });
+  if (!res.ok) throw new Error(`mail.tm login failed (${res.status})`);
+  const { token } = await res.json();
+  tokenCache[address] = token;
+  return token;
+}
+
+async function mailtmMessages(address, password) {
+  const token = await mailtmToken(address, password);
+  const res = await fetch(`${MAILTM}/messages`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`mail.tm messages failed (${res.status})`);
+  return (await res.json())['hydra:member'] || [];
+}
+
+async function mailtmMessage(address, password, id) {
+  const token = await mailtmToken(address, password);
+  const res = await fetch(`${MAILTM}/messages/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`mail.tm message failed (${res.status})`);
+  return res.json();
+}
+
+/* ================= STATE + RENDER ================= */
+let accounts = [];
+let fields = [];
+let checks = {}; // `${account_id}|${field_id}` -> checked
+
+async function loadAll() {
+  const [a, f, c] = await Promise.all([
+    sb('accounts?select=*&order=created_at.asc'),
+    sb('fields?select=*&order=position.asc,created_at.asc'),
+    sb('checks?select=account_id,field_id,checked'),
+  ]);
+  accounts = a; fields = f;
+  checks = {};
+  for (const row of c) checks[`${row.account_id}|${row.field_id}`] = row.checked;
+  render();
+}
+
+function render() {
+  $('count').textContent = `${accounts.length} account${accounts.length === 1 ? '' : 's'}`;
+
+  const head = $('head-row');
+  head.innerHTML = '';
+  for (const label of ['Phone', 'Email', 'Password', 'Notes']) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    head.appendChild(th);
+  }
+  for (const f of fields) {
+    const th = document.createElement('th');
+    th.className = 'field-col';
+    th.title = 'Click to rename';
+    th.textContent = f.name;
+    th.onclick = () => renameField(f);
+    const del = document.createElement('span');
+    del.className = 'del-field';
+    del.textContent = '✕';
+    del.title = 'Delete this column';
+    del.onclick = (e) => { e.stopPropagation(); deleteField(f); };
+    th.appendChild(del);
+    head.appendChild(th);
+  }
+  const thActions = document.createElement('th');
+  thActions.textContent = '';
+  head.appendChild(thActions);
+
+  const body = $('body');
+  body.innerHTML = '';
+  for (const acct of accounts) {
+    const tr = document.createElement('tr');
+
+    const tdPhone = document.createElement('td');
+    tdPhone.innerHTML = `<span class="phone"></span>`;
+    tdPhone.querySelector('.phone').textContent = acct.phone;
+    tr.appendChild(tdPhone);
+
+    const tdEmail = document.createElement('td');
+    const emailSpan = document.createElement('span');
+    emailSpan.className = 'email-addr';
+    emailSpan.textContent = acct.email || '—';
+    tdEmail.appendChild(emailSpan);
+    if (acct.email) {
+      const cp = document.createElement('button');
+      cp.className = 'icon copy-btn'; cp.textContent = '⧉'; cp.title = 'Copy email';
+      cp.onclick = () => copyText(acct.email, 'Email');
+      const inb = document.createElement('button');
+      inb.className = 'icon copy-btn'; inb.textContent = '📬'; inb.title = 'Open inbox';
+      inb.onclick = () => openInbox(acct);
+      tdEmail.append(cp, inb);
+    }
+    tr.appendChild(tdEmail);
+
+    const tdPw = document.createElement('td');
+    const pwSpan = document.createElement('span');
+    pwSpan.className = 'pw';
+    pwSpan.textContent = '••••••••';
+    pwSpan.style.cursor = 'pointer';
+    pwSpan.title = 'Click to show/hide';
+    let shown = false;
+    pwSpan.onclick = () => { shown = !shown; pwSpan.textContent = shown ? (acct.email_password || '') : '••••••••'; };
+    tdPw.appendChild(pwSpan);
+    if (acct.email_password) {
+      const cp = document.createElement('button');
+      cp.className = 'icon copy-btn'; cp.textContent = '⧉'; cp.title = 'Copy password';
+      cp.onclick = () => copyText(acct.email_password, 'Password');
+      tdPw.appendChild(cp);
+    }
+    tr.appendChild(tdPw);
+
+    const tdNotes = document.createElement('td');
+    tdNotes.className = 'notes-cell';
+    const notesIn = document.createElement('input');
+    notesIn.value = acct.notes || '';
+    notesIn.placeholder = '…';
+    notesIn.onchange = async () => {
+      try {
+        await sb(`accounts?id=eq.${acct.id}`, { method: 'PATCH', body: JSON.stringify({ notes: notesIn.value }) });
+        acct.notes = notesIn.value;
+        toast('Note saved');
+      } catch (e) { toast(e.message, 4000); }
+    };
+    tdNotes.appendChild(notesIn);
+    tr.appendChild(tdNotes);
+
+    for (const f of fields) {
+      const td = document.createElement('td');
+      td.className = 'check-cell';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!checks[`${acct.id}|${f.id}`];
+      cb.onchange = () => toggleCheck(acct, f, cb);
+      td.appendChild(cb);
+      tr.appendChild(td);
+    }
+
+    const tdActions = document.createElement('td');
+    const del = document.createElement('button');
+    del.className = 'icon danger'; del.textContent = '🗑'; del.title = 'Delete account';
+    del.onclick = () => deleteAccount(acct);
+    tdActions.appendChild(del);
+    tr.appendChild(tdActions);
+
+    body.appendChild(tr);
+  }
+
+  $('grid').hidden = accounts.length === 0;
+  $('empty').style.display = accounts.length === 0 ? '' : 'none';
+  $('empty').textContent = 'No accounts yet — hit “＋ Add Account” to create your first one.';
+}
+
+/* ================= ACTIONS ================= */
+async function toggleCheck(acct, field, cb) {
+  const key = `${acct.id}|${field.id}`;
+  try {
+    await sb('checks?on_conflict=account_id,field_id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ account_id: acct.id, field_id: field.id, checked: cb.checked, updated_at: new Date().toISOString() }),
+    });
+    checks[key] = cb.checked;
+  } catch (e) {
+    cb.checked = !cb.checked;
+    toast(e.message, 4000);
+  }
+}
+
+async function addField() {
+  const name = prompt('New column name (e.g. "Twitter", "Verified", "Used for signup"):');
+  if (!name || !name.trim()) return;
+  const position = fields.length ? Math.max(...fields.map((f) => f.position)) + 1 : 0;
+  try {
+    await sb('fields', { method: 'POST', body: JSON.stringify({ name: name.trim(), position }) });
+    await loadAll();
+    toast(`Column “${name.trim()}” added`);
+  } catch (e) { toast(e.message, 4000); }
+}
+
+async function renameField(field) {
+  const name = prompt('Rename column:', field.name);
+  if (!name || !name.trim() || name.trim() === field.name) return;
+  try {
+    await sb(`fields?id=eq.${field.id}`, { method: 'PATCH', body: JSON.stringify({ name: name.trim() }) });
+    await loadAll();
+  } catch (e) { toast(e.message, 4000); }
+}
+
+async function deleteField(field) {
+  if (!confirm(`Delete column “${field.name}” and all its checkboxes?`)) return;
+  try {
+    await sb(`fields?id=eq.${field.id}`, { method: 'DELETE' });
+    await loadAll();
+  } catch (e) { toast(e.message, 4000); }
+}
+
+async function deleteAccount(acct) {
+  if (!confirm(`Delete account ${acct.phone} (${acct.email || 'no email'})?\nThe mail.tm inbox itself is not deleted.`)) return;
+  try {
+    await sb(`accounts?id=eq.${acct.id}`, { method: 'DELETE' });
+    await loadAll();
+  } catch (e) { toast(e.message, 4000); }
+}
+
+/* ================= ADD ACCOUNT MODAL ================= */
+$('add-account-btn').onclick = () => {
+  $('in-phone').value = '';
+  $('in-pass').value = '';
+  $('add-status').textContent = '';
+  $('add-status').className = 'status';
+  $('add-overlay').classList.add('open');
+  $('in-phone').focus();
+};
+$('add-cancel').onclick = () => $('add-overlay').classList.remove('open');
+
+$('add-save').onclick = async () => {
+  const phone = $('in-phone').value.trim();
+  const status = $('add-status');
+  if (!phone) { status.textContent = 'Enter a phone number first.'; status.className = 'status err'; return; }
+  if (accounts.some((a) => a.phone === phone)) {
+    status.textContent = 'That phone number is already in the list.'; status.className = 'status err'; return;
+  }
+  const password = $('in-pass').value.trim() || genPassword();
+  const btn = $('add-save');
+  btn.disabled = true;
+  status.className = 'status';
+  try {
+    status.textContent = 'Creating mail.tm email…';
+    const mail = await mailtmCreateAccount(phone, password);
+    status.textContent = 'Saving to Supabase…';
+    await sb('accounts', {
+      method: 'POST',
+      body: JSON.stringify({
+        phone,
+        email: mail.address,
+        email_password: password,
+        mailtm_account_id: mail.id,
+      }),
+    });
+    await loadAll();
+    $('add-overlay').classList.remove('open');
+    toast(`Created ${mail.address}`);
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'status err';
+  } finally {
+    btn.disabled = false;
+  }
+};
+$('in-phone').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('add-save').click(); });
+$('in-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('add-save').click(); });
+
+$('add-field-btn').onclick = addField;
+
+/* ================= INBOX ================= */
+let inboxAcct = null;
+
+async function openInbox(acct) {
+  inboxAcct = acct;
+  $('inbox-addr').textContent = acct.email;
+  $('inbox-list').innerHTML = '<div class="empty">Loading…</div>';
+  $('inbox').classList.add('open');
+  await refreshInbox();
+}
+
+async function refreshInbox() {
+  if (!inboxAcct) return;
+  const list = $('inbox-list');
+  try {
+    const msgs = await mailtmMessages(inboxAcct.email, inboxAcct.email_password);
+    if (!msgs.length) {
+      list.innerHTML = '<div class="empty">Inbox is empty.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    for (const m of msgs) {
+      const div = document.createElement('div');
+      div.className = 'msg-item';
+      const from = document.createElement('div');
+      from.className = 'from';
+      from.textContent = `${m.from?.address || '?'} · ${new Date(m.createdAt).toLocaleString()}`;
+      const subj = document.createElement('div');
+      subj.className = 'subj';
+      subj.textContent = m.subject || '(no subject)';
+      const intro = document.createElement('div');
+      intro.className = 'from';
+      intro.textContent = m.intro || '';
+      div.append(from, subj, intro);
+      div.onclick = () => openMessage(m.id, m.subject);
+      list.appendChild(div);
+    }
+  } catch (e) {
+    list.innerHTML = '';
+    const err = document.createElement('div');
+    err.className = 'empty';
+    err.textContent = e.message;
+    list.appendChild(err);
+  }
+}
+
+async function openMessage(id, subject) {
+  try {
+    const msg = await mailtmMessage(inboxAcct.email, inboxAcct.email_password, id);
+    $('msg-subj').textContent = subject || '(no subject)';
+    const html = Array.isArray(msg.html) && msg.html.length
+      ? msg.html.join('')
+      : `<pre style="white-space:pre-wrap;font-family:sans-serif;padding:16px">${(msg.text || '(empty)').replace(/</g, '&lt;')}</pre>`;
+    $('msg-frame').srcdoc = html;
+    $('msg-view').classList.add('open');
+  } catch (e) { toast(e.message, 4000); }
+}
+
+$('inbox-close').onclick = () => $('inbox').classList.remove('open');
+$('inbox-refresh').onclick = refreshInbox;
+$('msg-close').onclick = () => $('msg-view').classList.remove('open');
+
+/* ================= BOOT ================= */
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  $('empty').textContent = 'Missing config.js — copy config.example.js to config.js (same folder) and fill in your Supabase URL + publishable key.';
+} else {
+  loadAll().catch((e) => {
+    $('empty').textContent = `Failed to load: ${e.message}`;
+  });
+}
+</script>
+</body>
+</html>
